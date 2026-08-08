@@ -1,5 +1,5 @@
 ---
-description: List every unresolved item in the thesis draft, by section
+description: List every unresolved item in the document draft, by section
 argument-hint: [optional: section number or chapter name to filter]
 ---
 
@@ -15,6 +15,6 @@ Group the output by section number and classify each note:
 - **Writing TODO** - prose to add or reconcile
 
 Lead with the discrepancies. Those are the ones that cost marks in a viva, and they are
-the only category where the thesis currently contradicts itself.
+the only category where the document currently contradicts itself.
 
 Finish with a count per category and the three sections carrying the most open items.

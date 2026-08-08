@@ -135,12 +135,20 @@ UNIT_RE = re.compile(r"\s*\[([^\]]+)\]$")
 
 
 def vocab_terms(fragments: list[Fragment]) -> list[dict]:
-    terms, kind = [], ""
-    kind_of = {"Abbreviations": "Abbreviation", "Symbols": "Symbol",
-               "PTG model notation": "Notation"}
+    """Vocabulary block -> Notion rows.
+
+    Abbreviations and Symbols are standard glossary sections and named by the engine.
+    A document may add a notation section of its own, via the `vocabulary()` hook in its
+    macro adapter; it is recognised by its heading rather than by any particular
+    notation, and the heading supplies the row's name.
+    """
+    terms, kind, heading = [], "", ""
+    kind_of = {"Abbreviations": "Abbreviation", "Symbols": "Symbol"}
     for f in fragments:
         if f.kind == "heading":
-            kind = kind_of.get(f.text.strip(), f.text.strip() or "Term")
+            heading = f.text.strip()
+            kind = kind_of.get(heading) or (
+                "Notation" if "notation" in heading.lower() else heading or "Term")
         elif f.kind == "bullet":
             m = TERM_RE.match(f.text)
             if not m:
@@ -152,11 +160,11 @@ def vocab_terms(fragments: list[Fragment]) -> list[dict]:
                 unit, definition = um.group(1), definition[: um.start()].strip()
             terms.append({"term": m.group(1).strip(), "kind": kind,
                           "definition": definition, "unit": unit})
-        elif f.kind == "paragraph" and kind == "Notation" and "PTG" in f.text:
-            # only the notation gloss itself: the corpus keeps front-matter LaTeX
-            # (\tableofcontents etc.) between the vocab block and §1, which also
-            # arrives here as paragraphs
-            terms.append({"term": "PTG^form_vars", "kind": "Notation",
+        elif f.kind == "paragraph" and kind == "Notation" and f.text.strip():
+            # Only the first paragraph after the heading: the corpus keeps front-matter
+            # LaTeX (\tableofcontents etc.) between the vocab block and §1, which also
+            # arrives here as paragraphs. Clearing `kind` stops those being swept in.
+            terms.append({"term": heading, "kind": "Notation",
                           "definition": f.text, "unit": ""})
             kind = ""
     return terms

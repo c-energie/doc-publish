@@ -4,10 +4,10 @@ Runs on your Claude plan's Agent SDK credit rather than API credits, so no
 ANTHROPIC_API_KEY is needed. Serves the same SSE shape as server.py, so web/index.html
 works unchanged.
 
-    python run_agent.py
+    thesis-agent agent
 
-Use run_agent.py, not the uvicorn CLI: uvicorn forces a Windows event-loop policy that
-cannot spawn the subprocess this backend depends on. See that file for the detail.
+Use that subcommand, not the uvicorn CLI: uvicorn forces a Windows event-loop policy
+that cannot spawn the subprocess this backend depends on. See thesis_agent/cli.py.
 
 Prerequisites:
   1. Node 18+ and the Claude Code CLI (`npm i -g @anthropic-ai/claude-code`)
@@ -18,7 +18,7 @@ Prerequisites:
 
 PERSONAL, LOCAL USE ONLY. Anthropic does not permit third-party products to offer
 claude.ai login or plan rate limits to their users. The moment other people are hitting
-this endpoint, switch to app/server.py with a Console API key.
+this endpoint, switch to the `app` subcommand with a Console API key.
 
 Single conversation per process: one client, one thread of history. That matches the
 personal-use constraint above. Serving concurrent users needs a client per session, and
@@ -82,35 +82,35 @@ def _to_mcp(blocks: list[dict]) -> dict[str, Any]:
     return {"content": out}
 
 
-@tool("get_figure", "Retrieve a thesis figure by its LaTeX label, e.g. 'Fig: CVs of HTCs'. "
+@tool("get_figure", "Retrieve a figure by its LaTeX label, e.g. 'Fig: model fits'. "
                     "Figures marked pending have no image - say so rather than describing them.",
       {"label": str})
 async def get_figure(args: dict[str, Any]) -> dict[str, Any]:
     return _to_mcp(dispatch("get_figure", args))
 
 
-@tool("list_figures", "List thesis figures whose caption, label or section matches a term.",
+@tool("list_figures", "List figures whose caption, label or section matches a term.",
       {"query": str})
 async def list_figures(args: dict[str, Any]) -> dict[str, Any]:
     return _to_mcp(dispatch("list_figures", args))
 
 
-@tool("query_results", "Query the per-dwelling estimates behind the results chapters. "
+@tool("query_results", "Query the per-record estimates behind the results chapters. "
                        "Args: filter (pandas .query expression), columns, groupby.",
       {"filter": str, "columns": list, "groupby": list})
 async def query_results(args: dict[str, Any]) -> dict[str, Any]:
     return _to_mcp(dispatch("query_results", args))
 
 
-@tool("plot_results", "Plot the per-dwelling results. kind: scatter | hist | ecdf. "
-                      "Generated now - not a thesis figure. Say so when showing one.",
+@tool("plot_results", "Plot the per-record results. kind: scatter | hist | ecdf. "
+                      "Generated now - not a figure from the document. Say so when showing one.",
       {"kind": str, "x": str, "y": str, "filter": str, "title": str})
 async def plot_results(args: dict[str, Any]) -> dict[str, Any]:
     return _to_mcp(dispatch("plot_results", args))
 
 
-THESIS_TOOLS = create_sdk_mcp_server(
-    name="thesis",
+DOCUMENT_TOOLS = create_sdk_mcp_server(
+    name="document",
     version="1.0.0",
     tools=[get_figure, list_figures, query_results, plot_results],
 )
@@ -132,11 +132,11 @@ SYSTEM_FILE.write_text(SYSTEM + "\n\n---\n\n" + CORPUS, encoding="utf-8")
 OPTIONS = ClaudeAgentOptions(
     model=MODEL,
     system_prompt={"type": "file", "path": str(SYSTEM_FILE.resolve())},
-    mcp_servers={"thesis": THESIS_TOOLS},
-    allowed_tools=[f"mcp__thesis__{n}" for n in
+    mcp_servers={"document": DOCUMENT_TOOLS},
+    allowed_tools=[f"mcp__document__{n}" for n in
                    ("get_figure", "list_figures", "query_results", "plot_results")],
     # The agent answers from the corpus in its context, not by wandering the filesystem.
-    # Without this it will try to Read the thesis repo and answer from raw LaTeX.
+    # Without this it will try to Read the document repo and answer from raw LaTeX.
     disallowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebSearch", "WebFetch"],
     # Load no filesystem settings: CLAUDE.md carries grep-the-corpus instructions meant for
     # interactive Claude Code sessions, which would contradict the setup above.
@@ -185,7 +185,7 @@ async def ask(req: Ask):
                             yield _sse({"type": "text", "text": block.text})
                         elif isinstance(block, ToolUseBlock):
                             yield _sse({"type": "tool",
-                                        "name": block.name.replace("mcp__thesis__", "")})
+                                        "name": block.name.replace("mcp__document__", "")})
                     while not _images.empty():
                         img = _images.get_nowait()
                         yield _sse({"type": "image", **img})

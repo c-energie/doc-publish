@@ -1,10 +1,10 @@
 # Renders the Quarto site and deploys to GitHub Pages.
 #
-# DELIBERATELY GATED to manual dispatch: the site contains the full thesis, and this
+# DELIBERATELY GATED to manual dispatch: the site contains the full document, and this
 # repo is the public engine - the document it renders is private and reachable only
 # with THESIS_REPO_TOKEN. Do not add push/PR triggers, and do not enable Pages, until
-# the gates in docs/publishing.md have cleared (SMETER/GHG data agreements, UCL's
-# position on pre-examination publication). Running this workflow today will render
+# gates recorded in the document's own publishing.md have cleared. Running this
+# workflow today will render
 # fine and then fail at the deploy step unless Pages has been enabled - that is the
 # intended failure mode.
 name: site
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check out the thesis source
+      - name: Check out the document source
         uses: actions/checkout@v4
         with:
           repository: corson94/thesis-latex
@@ -43,7 +43,7 @@ jobs:
       - name: Install thesis-agent
         run: pip install .
 
-      # State (page plan, anchor map, signposts) rides along in the thesis checkout
+      # State (page plan, anchor map, signposts) rides along in the document checkout
       # under .thesis-agent/, so anchors stay stable without extra wiring here.
       - name: Build corpus and site
         env:

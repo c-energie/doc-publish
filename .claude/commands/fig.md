@@ -1,5 +1,5 @@
 ---
-description: Find and display a thesis figure by topic or label
+description: Find and display a figure from the document by topic or label
 argument-hint: <topic or figure label>
 ---
 

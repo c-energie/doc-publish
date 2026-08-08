@@ -76,10 +76,33 @@ in the document repo; they are small.
   what the text is, and a `# Rules` section for the distinctions that are load-bearing in
   your argument. The generic prompt (citations, the demonstrated/argued/extrapolated
   tiers, figure honesty) is in `app/prompt.py` and needs no editing.
-- `ingest/flatten.py` — macro expansion. Project-specific macros are the most likely
-  thing to need extending; unresolvable ones become `[UNRESOLVED: ...]` markers in the
-  corpus and are reported by the build rather than dropped.
 - `publish/quarto/qmd.py` — `SHIM_MACROS`, for maths the renderers do not know.
+
+Most documents need neither of the above and no code changes at all.
+
+### Your document's own macros
+
+Package conventions — `\acrshort`, `\gls`, `\cite`, `\cref`, `\ExecuteMetaData`,
+`\graphicspath` — are handled for you. So are zero-argument literals: if your preamble
+says `\newcommand{\nmodels}{40}`, the corpus says 40. Nothing to configure.
+
+Macros that take arguments are the exception, and most documents have none. If yours
+does, the build tells you rather than guessing:
+
+```
+1 unresolved macro/key markers:
+   document macro '\ptg' (74x) - no adapter expands it
+```
+
+Then drop a `macros.py` in the state directory exporting `expand(text, vocab, unresolved)`
+and, optionally, `vocabulary()`. See `ingest/adapter.py` for the full contract — it is
+called at one fixed point in the pipeline, must be pure text→text, and reports unresolved
+keys the same way the engine does, so the build still fails on anything it cannot handle.
+
+Two things worth knowing. That file is **imported and executed** — the same trust you
+already give a `Makefile` in a repo you control, but do not point the engine at a repo
+you do not. And a `macros.py` that fails to import is a hard error, never a warning:
+silently skipping it would publish raw `\ptg{...}` into the corpus.
 
 ## When to add retrieval
 

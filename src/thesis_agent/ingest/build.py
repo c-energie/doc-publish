@@ -2,11 +2,11 @@
 
 Two corpora, because the LaTeX comments are not noise:
   corpus_public.md  comments stripped - safe to serve to anyone
-  corpus_draft.md   comments kept as draft notes - for Jamie and viva prep only
+  corpus_draft.md   comments kept as draft notes - for the author only
 
-The results chapter's comments contain notebook provenance for individual numbers,
+A working draft's comments carry provenance for individual numbers,
 inline TODOs, and at least one unresolved discrepancy addressed to a supervisor. Serving
-those to an external reader would leak the thesis's open problems; hiding them from
+those to an external reader would leak the document's open problems; hiding them from
 yourself would waste the most useful thing in the repo.
 """
 from __future__ import annotations
@@ -15,6 +15,7 @@ import json
 import sys
 
 from .. import config
+from . import adapter
 from .figures import build_manifest
 from .flatten import flatten, vocabulary_block
 
@@ -44,9 +45,15 @@ def main() -> int:
 
     OUT = config.build_dir(create=True)
 
-    public = flatten(repo, mode="public")
-    draft = flatten(repo, mode="draft")
-    vocab = vocabulary_block(public.vocab)
+    try:
+        public = flatten(repo, mode="public")
+        draft = flatten(repo, mode="draft")
+        vocab = vocabulary_block(public.vocab)
+    except adapter.AdapterError as exc:
+        # A document's macros.py is code it wrote, not a bug in the engine - report it as
+        # a configuration failure rather than a traceback out of an import.
+        print(exc, file=sys.stderr)
+        return 2
 
     for mode, c, note in (("public", public, ""), ("draft", draft, NOTE_DRAFT)):
         (OUT / f"corpus_{mode}.md").write_text(

@@ -5,7 +5,7 @@ is **generic and public**. Everything specific to a particular document — its 
 answering rules, its publishing state — lives in that document's repo under
 `.thesis-agent/`, located by `THESIS_REPO`.
 
-Nothing thesis-specific belongs in this repo. If you find yourself writing a chapter
+Nothing document-specific belongs in this repo. If you find yourself writing a chapter
 number, a dataset name or a result into a file here, it goes in the state directory
 instead.
 
@@ -17,7 +17,8 @@ src/thesis_agent/
                 for a path. Real env vars beat .env; missing settings raise ConfigError
                 with the variable name, never a silent default.
   ingest/       flatten.py (LaTeX -> text), figures.py (float manifest), build.py,
-                manifest.py (interactive exports -> labels)
+                manifest.py (interactive exports -> labels), adapter.py (optional
+                per-document macros.py, loaded from the state dir)
   publish/      emit.py + structure.py (parse -> page plan, shared by both streams),
                 sync.py (Notion), build_site.py + quarto/ (site), to_repo.py (publish
                 repo), bundle.py, serve.py
@@ -30,7 +31,15 @@ macros → number sections. Stripping comments before pulling tagged tables sile
 deletes every table in the document.
 
 Nothing is dropped silently: unresolvable macros, keys and includes become
-`[UNRESOLVED: ...]` markers in the corpus and are reported by the build.
+`[UNRESOLVED: ...]` markers in the corpus and are reported by the build. That extends to
+the document's own `\newcommand`s — any that reach the corpus unexpanded are reported and
+fail the build, because the silent version reads plausibly: a count macro resolves to
+nothing, so "a family of \nmodels{} variants" becomes "a family of variants" and the
+number is simply gone.
+
+Zero-argument literals (`\newcommand{\nmodels}{40}`) are expanded by the engine; they are
+a package convention, not a document quirk. Macros taking arguments belong in the
+document's own `macros.py` (see `ingest/adapter.py`). Most documents have none.
 
 ## Working on it
 

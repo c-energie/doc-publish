@@ -1,4 +1,4 @@
-"""Tools: figure retrieval and querying/plotting the per-dwelling results."""
+"""Tools: figure retrieval and querying/plotting the per-record results."""
 from __future__ import annotations
 
 import base64
@@ -12,8 +12,8 @@ import pandas as pd
 from .. import config
 
 BUILD = config.build_dir()
-# tidy per-record rows: dwelling_id, method, htc, htc_sd, ...  Never committed - override
-# the location with THESIS_RESULTS.
+# Tidy per-record rows: an id column, a method column, an estimate and its
+# uncertainty. Never committed - override the location with THESIS_RESULTS.
 RESULTS = Path(os.environ.get("THESIS_RESULTS") or Path.cwd() / "data" / "results.parquet")
 
 _manifest: list[dict] | None = None
@@ -38,7 +38,7 @@ SCHEMA = [
     {
         "name": "get_figure",
         "description": (
-            "Retrieve a figure from the thesis by its LaTeX label (e.g. 'Fig: CVs of HTCs'). "
+            "Retrieve a figure from the document by its LaTeX label (e.g. 'Fig: model fits'). "
             "Use when a figure answers better than prose, or when asked to show a result. "
             "Call list_figures first if unsure of the label."
         ),
@@ -50,7 +50,7 @@ SCHEMA = [
     },
     {
         "name": "list_figures",
-        "description": "List thesis figures whose caption or section matches a search term.",
+        "description": "List figures whose caption or section matches a search term.",
         "input_schema": {
             "type": "object",
             "properties": {"query": {"type": "string"}},
@@ -60,9 +60,9 @@ SCHEMA = [
     {
         "name": "query_results",
         "description": (
-            "Query the per-dwelling estimates behind the results chapters. Returns summary "
+            "Query the per-record estimates behind the results chapters. Returns summary "
             "statistics, never more than 50 rows. Columns: " + ", ".join(results().columns)
-            if not results().empty else "Per-dwelling results table (not yet loaded)."
+            if not results().empty else "Results table (not yet loaded)."
         ),
         "input_schema": {
             "type": "object",
@@ -76,9 +76,9 @@ SCHEMA = [
     {
         "name": "plot_results",
         "description": (
-            "Generate a plot from the per-dwelling results. Kinds: 'scatter' (method "
+            "Generate a plot from the per-record results. Kinds: 'scatter' (method "
             "agreement, x vs y with error bars), 'hist', 'ecdf'. Generated on the fly - "
-            "not a thesis figure."
+            "not a figure from the document."
         ),
         "input_schema": {
             "type": "object",

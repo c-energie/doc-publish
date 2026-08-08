@@ -1,9 +1,10 @@
-"""LaTeX -> markdown flattener, written against the real thesis conventions.
+"""LaTeX -> markdown flattener, written against the conventions real documents use.
 
-Verified against corson94/thesis-latex @ main:
+Verified against a working thesis; all of it is ordinary subfiles/glossaries/biblatex
+usage rather than anything peculiar to that document:
   main.tex           subfiles: Preamble, Introduction, background_chapter, Use-cases,
                      Method, Results, Discussion, Conclusion
-  custom_settings.sty  \\graphicspath (7 dirs), \\ptg macro, biblatex resources
+  custom_settings.sty  \\graphicspath (7 dirs), \\newcommand literals, biblatex resources
   glossary_terms.tex   \\newacronym (abbreviations) + \\newglossaryentry type=symbols
 
 Pipeline order matters and is not negotiable:
@@ -11,7 +12,8 @@ Pipeline order matters and is not negotiable:
   2. split out % comments            (they carry provenance, TODOs, supervisor questions)
   3. resolve \\ExecuteMetaData       (AFTER 2: a commented-out table reference is one the
                                      author withheld, and must not be pulled in)
-  4. expand macros                   (acronyms, symbols, \\ptg, citations, refs)
+  4. expand macros                   (acronyms, symbols, citations, refs, and the
+                                     document's own via ingest/adapter.py)
   5. number sections                 (chapter numbers come from main.tex's subfile order)
 
 Two corpora come out of this: `public` (comments dropped) and `draft` (comments kept as
@@ -22,31 +24,19 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
+from . import adapter
 
 ROOT = "main.tex"
 SETTINGS = "custom_settings.sty"
 GLOSSARY = "glossary_terms.tex"
 BIB_PATHS = ["Bibliographies/bib.bib", "Bibliographies/references.bib"]
 
-# --- \ptg{<form>}{<vars>} ---------------------------------------------------
-# Verified from custom_settings.sty. Empty form key = base form; vars are a
-# comma-separated list. Unknown keys render red in LaTeX, so they are hard errors here too.
-PTG_FORM = {
-    "": "base form",
-    "base": "base form",
-    "heat": "heating-only form",
-    "cool": "cooling form",
-    "slope": "sloped-base form",
-    "max": "max-power form",
-    "seas": "seasonal form",
-}
-PTG_VAR = {"solar": "solar", "wind": "wind", "awind": "additive-wind"}
-
 INCLUDE_RE = re.compile(r"\\(?:subfile|input|include)\{([^}]+)\}")
 DOCCLASS_RE = re.compile(r"\\documentclass(?:\[[^\]]*\])?\{subfiles\}")
 EXECMETA_RE = re.compile(r"\\ExecuteMetaData(?:\[([^\]]*)\])?\{([^}]+)\}")
 COMMENT_RE = re.compile(r"(?<!\\)%(.*)$", re.M)
-PTG_RE = re.compile(r"\\ptg\{([^}]*)\}\{([^}]*)\}")
 ACR_RE = re.compile(r"\\(acrshort|acrlong|acrfull|Acrlong|glsentryshort)\{([^}]+)\}")
 GLS_RE = re.compile(r"\\(gls|Gls|glspl)\{([^}]+)\}")
 CITE_RE = re.compile(
@@ -63,12 +53,26 @@ LEVELS = {"chapter": 0, "section": 1, "subsection": 2, "subsubsection": 3}
 
 REF_KIND = {"fig": "Figure", "tab": "Table", "eq": "Equation", "ch": "Chapter"}
 
+# Macros the document defines for itself. Anything here that survives expansion is a
+# macro nothing knows how to render - see check_document_macros.
+MACRODEF_RE = re.compile(
+    r"\\(?:newcommand|renewcommand|providecommand|newrobustcmd|DeclareRobustCommand|def)"
+    r"\s*\*?\s*\{?\\([A-Za-z@]+)\}?"
+)
+# Maths is passed through as LaTeX on purpose, for MathJax/KaTeX to render. Unknown
+# commands *inside* it are a rendering concern, reported separately by the site build.
+MATH_SPAN_RE = re.compile(r"\$\$.*?\$\$|\$[^$\n]*\$", re.S)
+
 
 @dataclass
 class Vocab:
     acronyms: dict[str, tuple[str, str]] = field(default_factory=dict)   # key -> (short, long)
     symbols: dict[str, tuple[str, str, str]] = field(default_factory=dict)  # key -> (name, desc, unit)
     bib: dict[str, str] = field(default_factory=dict)
+    literals: dict[str, str] = field(default_factory=dict)   # \newcommand{\n}{40} -> "40"
+    # The document's own macro adapter, if it ships one. Carried here because Vocab
+    # already reaches both expand() call sites and vocabulary_block(); see adapter.py.
+    macros: Any = None
 
 
 @dataclass
@@ -112,6 +116,10 @@ def _detex(s: str) -> str:
 # --- vocabulary -------------------------------------------------------------
 def load_vocab(repo: Path) -> Vocab:
     v = Vocab()
+    # Raises if the document ships a broken macros.py. Better here than three stages
+    # later with raw \macro{...} already written into the corpus.
+    v.macros = adapter.load_for(repo)
+    v.literals = literal_macros(repo)
     raw = (repo / GLOSSARY).read_text(encoding="utf-8", errors="replace")
 
     for m in re.finditer(r"\\newacronym\{([^}]+)\}\{(.+?)\}\{(.+?)\}\s*$", raw, re.M):
@@ -206,24 +214,15 @@ def pull_tagged(repo: Path, text: str, unresolved: list[str]) -> str:
 
 # --- stage 4: macro expansion ----------------------------------------------
 def expand(s: str, v: Vocab, unresolved: list[str]) -> str:
-    def ptg(m: re.Match) -> str:
-        form, variables = m.group(1).strip(), m.group(2).strip()
-        if form not in PTG_FORM:
-            unresolved.append(f"\\ptg form key '{form}'")
-            return f"[UNRESOLVED: ptg form {form}]"
-        parts = [k.strip() for k in variables.split(",") if k.strip()]
-        for k in parts:
-            if k not in PTG_VAR:
-                unresolved.append(f"\\ptg var key '{k}'")
-        # Compact notation, matching how the thesis typesets it. The prose already reads
-        # "the max-power form \ptg{max}{}", so glossing the macro as "PTG max-power form"
-        # produces "the max-power form PTG max-power form". The vocabulary block at the top
-        # of the corpus defines every key once, which is where the gloss belongs.
-        sup = f"^{form}" if form not in ("", "base") else ""
-        sub = "_{" + ",".join(PTG_VAR.get(k, f"?{k}?") for k in parts) + "}" if parts else ""
-        return f"PTG{sup}{sub}"
+    # The document's own macros go first: they expand into prose that may itself contain
+    # acronyms and references, which the passes below then resolve.
+    s = adapter.expand(v.macros, s, v, unresolved)
 
-    s = PTG_RE.sub(ptg, s)
+    # Zero-argument literals. `\nmodels{}` and `\nmodels` are the same macro; the empty
+    # braces are LaTeX's way of protecting the following space, and dropping them here
+    # is what stops "of \nmodels{} variants" collapsing to "of variants".
+    for name, value in v.literals.items():
+        s = re.sub(rf"\\{re.escape(name)}(?![A-Za-z])(?:\{{\}})?", value.replace("\\", r"\\"), s)
 
     def acr(m: re.Match) -> str:
         kind, key = m.group(1), m.group(2)
@@ -350,6 +349,7 @@ def flatten(repo: Path, mode: str = "public") -> Corpus:
         i = after
 
     c.text = re.sub(r"\n{3,}", "\n\n", "".join(out)).strip()
+    check_document_macros(c.text, repo, c.unresolved)
     c.unresolved += re.findall(r"\[UNRESOLVED: [^\]]+\]", c.text)
     return c
 
@@ -400,6 +400,81 @@ def _emit(chunk: str, v: Vocab, c: Corpus, notes: list[str], here: str, mode: st
     return expand(chunk, v, c.unresolved)
 
 
+#: `\newcommand{\name}{...}` or `\newcommand\name{...}`, zero arguments only - a `[n]`
+#: between the name and the body means it takes parameters, which is adapter territory.
+LITERAL_DEF_RE = re.compile(
+    r"\\(?:newcommand|providecommand)\s*\*?\s*\{?\\([A-Za-z]+)\}?\s*(?!\[)\{")
+
+
+def literal_macros(repo: Path) -> dict[str, str]:
+    """Zero-argument macros whose body is plain text: `\\newcommand{\\nmodels}{40}`.
+
+    These are a package convention, not a document quirk - any LaTeX document can define
+    a count or a phrase once and use it throughout - so the engine expands them itself
+    rather than making every document ship an adapter for them.
+
+    Bodies containing commands (`\\width` -> `0.95\\textwidth`, `\\reddot` -> a tikz
+    picture) are skipped: those are layout, they never carry meaning in prose, and
+    substituting them would put raw LaTeX into the corpus in place of a clean marker.
+    """
+    path = repo / SETTINGS
+    if not path.exists():
+        return {}
+    out: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.lstrip().startswith("%"):
+            continue
+        body_line = re.split(r"(?<!\\)%", line)[0]
+        m = LITERAL_DEF_RE.search(body_line)
+        if not m:
+            continue
+        body, _ = _brace(body_line, m.end() - 1)
+        if "\\" in body or "{" in body:
+            continue
+        out[m.group(1)] = body.strip()
+    return out
+
+
+def document_macros(repo: Path) -> set[str]:
+    """Names the document defines with \\newcommand and friends, from its .sty preamble.
+
+    Commented-out definitions are skipped, and internal `@` names are ignored: those are
+    implementation details of other macros and never appear in prose.
+    """
+    path = repo / SETTINGS
+    if not path.exists():
+        return set()
+    names: set[str] = set()
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.lstrip().startswith("%"):
+            continue
+        body = re.split(r"(?<!\\)%", line)[0]
+        names |= {n for n in MACRODEF_RE.findall(body) if "@" not in n}
+    return names
+
+
+def check_document_macros(text: str, repo: Path, unresolved: list[str]) -> None:
+    """Report document macros that reached the corpus unexpanded.
+
+    Without this the failure is silent and the corpus reads plausibly: a count macro
+    resolves to nothing, so "a family of \\nmodels{} variants" becomes "a family of
+    variants" and the number is simply gone. A reader cannot tell that anything is
+    missing, which is precisely the class of error the [UNRESOLVED] markers exist for.
+
+    The engine handles package conventions itself; a document's own macros are the
+    business of its `macros.py` adapter. Anything found here is either a macro that
+    adapter should expand, or one it does not know about yet.
+    """
+    defined = document_macros(repo)
+    if not defined:
+        return
+    prose = MATH_SPAN_RE.sub(" ", text)
+    for name in sorted(defined):
+        n = len(re.findall(rf"\\{re.escape(name)}(?![A-Za-z])", prose))
+        if n:
+            unresolved.append(f"document macro '\\{name}' ({n}x) - no adapter expands it")
+
+
 def vocabulary_block(v: Vocab) -> str:
     """Prepended to the corpus so the model has every term defined exactly once."""
     lines = ["## Vocabulary\n", "### Abbreviations\n"]
@@ -408,10 +483,7 @@ def vocabulary_block(v: Vocab) -> str:
     lines.append("\n### Symbols\n")
     for k, (name, desc, unit) in sorted(v.symbols.items(), key=lambda x: x[1][0]):
         lines.append(f"- **{name}** - {desc}" + (f" [{unit}]" if unit else ""))
-    lines.append("\n### PTG model notation\n")
-    lines.append("`PTG^form_vars` denotes an energy-signature model variant. Structural forms: "
-                 + ", ".join(f"{k or '(base)'}={vv}" for k, vv in PTG_FORM.items() if k != "base")
-                 + ". Weather variables: " + ", ".join(f"{k}={vv}" for k, vv in PTG_VAR.items()) + ".")
+    lines += adapter.vocabulary(v.macros)
     return "\n".join(lines) + "\n"
 
 

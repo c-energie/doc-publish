@@ -13,7 +13,7 @@ Citations resolve per component: each "Author Year" inside a parenthetical links
 its own row in the References database (falling back to the database itself when the
 label is ambiguous or unmatched).
 
-Page anatomy (agreed with Jamie, 2026-08-04):
+Page anatomy:
   signpost callout (approved only) -> table-of-contents block (pages with headings) ->
   own content -> per top-level inlined section: divider + open heading + content ->
   deeper sections as collapsed toggle headings -> "Open questions" callout -> footer.
@@ -48,7 +48,8 @@ def footer_text() -> str:
 MAX_FIGURE_COLUMNS = 3
 # Thesis level at which inlined section headings become collapsed toggles.
 # 2 = every inlined section (chapter pages open as outlines of §N.x toggles) -
-# widened from 4 (subsubsections only) at Jamie's request, 2026-08-04.
+# widened from 4 (subsubsections only): past this depth a section reads better
+# inlined under its parent than as a page of its own.
 TOGGLE_LEVEL = 2
 
 

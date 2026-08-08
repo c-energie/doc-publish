@@ -4,13 +4,13 @@ A signpost is a short navigational note - "to skip ahead to the results this met
 produces, see §5.1", "the figure showing these assumptions is Fig X" - rendered as a
 compact 🧭 callout at the start or end of the section it is anchored to (including
 sections that live inside toggles). Redesigned 2026-08-04 from per-chapter intros to
-per-section pointers, at Jamie's request.
+per-section pointers.
 
 File format (signposts.md in the state dir, committed):
 
     ## §4.3.4 end
     status: draft
-    title: The PTG model family
+    title: The model family
     To skip ahead to the results these forms produce, see [§5.1.3]. The model
     shapes at a glance: [Fig: model_examples].
 
