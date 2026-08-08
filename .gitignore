@@ -1,0 +1,23 @@
+# Derived artefacts - rebuild from a checkout of the document repo at deploy time.
+# build/ holds the flattened document, including corpus_draft.md with source comments,
+# provisional numbers and open questions, plus copies of every figure and the vendored
+# MathJax cache. data/ holds any per-record results export. Neither belongs in git.
+build/
+data/
+
+# Site build products now default to inside build/, but stay ignored for older checkouts
+# and for anyone who points THESIS_SITE_DIR back here. The state that must survive a
+# rebuild - anchor map, Notion manifest, signposts - lives in the document repo under
+# .thesis-agent/, not here. See config.state_dir for why.
+site/
+site_build/
+dist/
+
+# Local configuration. Never commit: it names private repo paths and may carry tokens.
+.env
+
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/

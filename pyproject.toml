@@ -1,0 +1,47 @@
+[project]
+name = "thesis-agent"
+version = "0.1.0"
+description = "Turn a LaTeX thesis or paper into a queryable corpus, a Notion wiki and an offline site."
+authors = [{ name = "Jamie Corson", email = "jamie.corson.20@ucl.ac.uk" }]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# The ingest and publish paths - the reason most people would install this - need
+# nothing but the standard library plus httpx for the Notion API. Serving the corpus as
+# a chat backend is a different job with much heavier dependencies, so it is an extra.
+dependencies = [
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# The chat server: cached-corpus backend, its tools, and the figure/plot path.
+app = [
+    "anthropic>=0.40",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pandas>=2.2",
+    "pyarrow>=17",
+    "matplotlib>=3.9",
+    "PyMuPDF>=1.24",
+]
+# The Agent SDK backend. Also needs Node 18+ and the Claude Code CLI:
+#   npm i -g @anthropic-ai/claude-code
+agent = ["claude-agent-sdk>=0.1"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+thesis-agent = "thesis_agent.cli:main"
+
+[project.urls]
+Repository = "https://github.com/corson94/thesis-agent"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+thesis_agent = ["web/*.html"]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,61 @@
+# Renders the Quarto site and deploys to GitHub Pages.
+#
+# DELIBERATELY GATED to manual dispatch: the site contains the full thesis, and this
+# repo is the public engine - the document it renders is private and reachable only
+# with THESIS_REPO_TOKEN. Do not add push/PR triggers, and do not enable Pages, until
+# the gates in docs/publishing.md have cleared (SMETER/GHG data agreements, UCL's
+# position on pre-examination publication). Running this workflow today will render
+# fine and then fail at the deploy step unless Pages has been enabled - that is the
+# intended failure mode.
+name: site
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the thesis source
+        uses: actions/checkout@v4
+        with:
+          repository: corson94/thesis-latex
+          token: ${{ secrets.THESIS_REPO_TOKEN }}
+          path: thesis
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: "1.10.18"
+
+      - name: Install thesis-agent
+        run: pip install .
+
+      # State (page plan, anchor map, signposts) rides along in the thesis checkout
+      # under .thesis-agent/, so anchors stay stable without extra wiring here.
+      - name: Build corpus and site
+        env:
+          THESIS_REPO: ${{ github.workspace }}/thesis
+        run: |
+          thesis-agent build
+          thesis-agent site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site_build
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

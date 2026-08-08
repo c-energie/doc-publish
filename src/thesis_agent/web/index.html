@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask the thesis - in-use thermal performance of dwellings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEFF1; --ink:#14181C; --slate:#5A6672; --rule:#CFD5DA;
+  --cold:#2C3E8C; --warm:#C86A16; --field:#FFFFFF;
+  --serif:"Source Serif 4",Georgia,serif;
+  --cond:"IBM Plex Sans Condensed",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--serif)}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px 160px}
+
+header{padding:28px 0 20px;border-bottom:1px solid var(--rule);margin-bottom:32px}
+h1{font:700 clamp(26px,5vw,38px)/1.05 var(--cond);letter-spacing:-.02em;margin:0}
+h1 em{font-style:normal;color:var(--warm)}
+.sub{font:400 12px/1.5 var(--mono);color:var(--slate);margin-top:8px;letter-spacing:.02em}
+
+/* signature: the thesis's own instrument as the empty state */
+.signature{margin:8px 0 36px}
+.signature svg{width:100%;height:auto;display:block}
+.signature figcaption{font:400 12px/1.5 var(--mono);color:var(--slate);margin-top:10px}
+
+.turn{margin:0 0 30px}
+.who{font:500 11px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--slate);margin-bottom:10px}
+.q{border-left:2px solid var(--cold);padding-left:16px}
+.a p{margin:0 0 14px}
+.a img{max-width:100%;border:1px solid var(--rule);background:var(--field);margin:6px 0 14px}
+.cite{font:400 13px/1 var(--mono);color:var(--cold);background:rgba(44,62,140,.07);
+  border:1px solid rgba(44,62,140,.2);border-radius:2px;padding:2px 5px;white-space:nowrap}
+.tool{font:400 12px/1 var(--mono);color:var(--warm);margin:0 0 12px}
+.tool::before{content:"\2192 ";}
+
+.ask{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--paper) 22%);padding:34px 20px 20px}
+.ask form{max-width:760px;margin:0 auto;display:flex;gap:8px}
+textarea{flex:1;resize:none;font:400 16px/1.5 var(--serif);color:var(--ink);
+  background:var(--field);border:1px solid var(--rule);border-radius:2px;padding:12px 14px;min-height:52px}
+textarea:focus-visible,button:focus-visible{outline:2px solid var(--cold);outline-offset:2px}
+button{font:600 13px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase;
+  background:var(--ink);color:var(--paper);border:0;border-radius:2px;padding:0 20px;cursor:pointer}
+button[disabled]{background:var(--slate);cursor:progress}
+.hints{max-width:760px;margin:10px auto 0;display:flex;flex-wrap:wrap;gap:6px}
+.hints button{background:none;color:var(--slate);border:1px solid var(--rule);
+  font:400 12px/1 var(--mono);text-transform:none;letter-spacing:0;padding:6px 9px}
+.hints button:hover{color:var(--ink);border-color:var(--slate)}
+@media (prefers-reduced-motion:no-preference){.pt{animation:d 1.1s ease-out both}
+  @keyframes d{from{opacity:0}to{opacity:1}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Ask the thesis: how dwellings <em>actually</em> lose heat</h1>
+  <p class="sub">In-use thermal performance from energy signatures &middot; J. Corson, UCL &middot; answers cite the section they come from</p>
+</header>
+
+<figure class="signature" id="empty">
+  <svg viewBox="0 0 700 230" role="img" aria-label="An energy signature: measured power against external temperature, with a fitted gradient and uncertainty band.">
+    <defs><linearGradient id="band" x1="0" x2="1">
+      <stop offset="0" stop-color="#C86A16" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#2C3E8C" stop-opacity=".10"/></linearGradient></defs>
+    <line x1="46" y1="196" x2="678" y2="196" stroke="#CFD5DA"/>
+    <line x1="46" y1="16" x2="46" y2="196" stroke="#CFD5DA"/>
+    <path d="M46 40 L470 168 L678 168 L678 186 L470 186 L46 58 Z" fill="url(#band)"/>
+    <path d="M46 49 L470 177 L678 177" fill="none" stroke="#14181C" stroke-width="1.6"/>
+    <g id="pts" fill="#2C3E8C" opacity=".72"></g>
+    <text x="52" y="14" font-family="IBM Plex Mono, monospace" font-size="11" fill="#5A6672">power (W)</text>
+    <text x="600" y="216" font-family="IBM Plex Mono, monospace" font-size="11" fill="#5A6672">T ext (&deg;C)</text>
+    <text x="180" y="96" font-family="IBM Plex Mono, monospace" font-size="11" fill="#C86A16">slope = &minus;HTC</text>
+    <text x="530" y="160" font-family="IBM Plex Mono, monospace" font-size="11" fill="#5A6672">base load</text>
+  </svg>
+  <figcaption>Every answer here rests on curves like this one - a heating-season slope, a balance
+  temperature, and an uncertainty the thesis is careful never to drop.</figcaption>
+</figure>
+
+<div id="log"></div>
+</div>
+
+<div class="ask">
+  <form id="f">
+    <textarea id="q" placeholder="What does the thesis show about which dwellings give reliable HTC estimates?" rows="1"></textarea>
+    <button id="go">Ask</button>
+  </form>
+  <div class="hints">
+    <button type="button">What is an energy signature, in plain terms?</button>
+    <button type="button">Show me a PTG fit for one dwelling</button>
+    <button type="button">How do PTG and MLR estimates compare?</button>
+    <button type="button">What can't this method tell you?</button>
+  </div>
+</div>
+
+<script>
+// scatter around the fitted line - drawn, not decorative: it is the thesis's core plot
+const g=document.getElementById('pts');
+for(let i=0;i<58;i++){const t=Math.random();const x=46+t*632;
+  const y=(49+t*128)+(Math.random()-.5)*(18+t*26);
+  g.insertAdjacentHTML('beforeend',`<circle cx="${x.toFixed(1)}" cy="${Math.min(y,192).toFixed(1)}" r="2.6"/>`);}
+
+const log=document.getElementById('log'), qEl=document.getElementById('q'),
+      go=document.getElementById('go'), empty=document.getElementById('empty');
+let messages=[];
+
+document.querySelectorAll('.hints button').forEach(b=>
+  b.onclick=()=>{qEl.value=b.textContent;ask();});
+document.getElementById('f').onsubmit=e=>{e.preventDefault();ask();};
+qEl.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask();}};
+
+function el(cls,html){const d=document.createElement('div');d.className=cls;d.innerHTML=html;log.append(d);return d;}
+function fmt(s){return s.replace(/\u00a7[\d.]+/g,m=>`<span class="cite">${m}</span>`)
+  .split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');}
+
+async function ask(){
+  const text=qEl.value.trim(); if(!text) return;
+  empty.style.display='none'; qEl.value=''; go.disabled=true;
+  el('turn q pt',`<div class="who">Question</div><p>${text}</p>`);
+  messages.push({role:'user',content:text});
+
+  const turn=el('turn a pt','<div class="who">From the thesis</div>');
+  const body=document.createElement('div'); turn.append(body);
+  let buf='';
+
+  const res=await fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({messages})});
+  const reader=res.body.getReader(), dec=new TextDecoder(); let tail='';
+  while(true){
+    const {done,value}=await reader.read(); if(done) break;
+    tail+=dec.decode(value,{stream:true});
+    const parts=tail.split('\n\n'); tail=parts.pop();
+    for(const p of parts){
+      if(!p.startsWith('data: ')) continue;
+      const e=JSON.parse(p.slice(6));
+      if(e.type==='text'){buf+=e.text; body.innerHTML=fmt(buf);}
+      if(e.type==='tool'){body.insertAdjacentHTML('beforeend',
+        `<p class="tool">${e.name.replace(/_/g,' ')}</p>`); buf='';}
+      if(e.type==='image'){body.insertAdjacentHTML('beforeend',
+        `<img alt="Figure from the thesis" src="data:${e.media};base64,${e.data}">`); buf='';}
+    }
+  }
+  messages.push({role:'assistant',content:buf});
+  go.disabled=false; qEl.focus();
+}
+</script>
+</body>
+</html>
