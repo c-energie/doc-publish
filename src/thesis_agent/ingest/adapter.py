@@ -39,6 +39,7 @@ worth knowing before pointing the engine at a repo you do not.
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -59,10 +60,17 @@ def load(state_dir: Path) -> ModuleType | None:
     if spec is None or spec.loader is None:
         raise AdapterError(f"{path} could not be loaded as a Python module")
     module = importlib.util.module_from_spec(spec)
+    # Don't leave a __pycache__ behind. The document repo is an input the engine only
+    # reads; dropping bytecode into it puts an untracked directory in someone's LaTeX
+    # checkout, which then syncs to Overleaf or shows up in git status.
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     try:
         spec.loader.exec_module(module)
     except Exception as exc:                                  # noqa: BLE001
         raise AdapterError(f"{path} failed to import: {exc}") from exc
+    finally:
+        sys.dont_write_bytecode = previous
 
     for hook in ("expand", "vocabulary"):
         if hasattr(module, hook) and not callable(getattr(module, hook)):
