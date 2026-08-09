@@ -1,5 +1,5 @@
 [project]
-name = "thesis-agent"
+name = "doc-publish"
 version = "0.1.0"
 description = "Turn a LaTeX thesis or paper into a queryable corpus, a Notion wiki and an offline site."
 authors = [{ name = "Jamie Corson", email = "jamie.corson.20@ucl.ac.uk" }]
@@ -31,19 +31,19 @@ agent = ["claude-agent-sdk>=0.1"]
 dev = ["pytest>=8"]
 
 [project.scripts]
-thesis-agent = "thesis_agent.cli:main"
+doc-publish = "doc_publish.cli:main"
 
 [project.urls]
-Repository = "https://github.com/c-energie/thesis-agent"
+Repository = "https://github.com/c-energie/doc-publish"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-# contract_templates/ is what `thesis-agent init` writes into a document repo, so the
+# contract_templates/ is what `doc-publish init` writes into a document repo, so the
 # skeletons ship with the engine rather than being hand-copied into each document — one
 # owner for the contract, and no silent drift when its shape changes.
-thesis_agent = ["web/*.html", "contract_templates/*", "contract_templates/skills/*/*"]
+doc_publish = ["web/*.html", "contract_templates/*", "contract_templates/skills/*/*"]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

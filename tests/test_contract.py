@@ -10,8 +10,8 @@ import json
 
 import pytest
 
-from thesis_agent import config, contract
-from thesis_agent.ingest import adapter
+from doc_publish import config, contract
+from doc_publish.ingest import adapter
 
 
 @pytest.fixture

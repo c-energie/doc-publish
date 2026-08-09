@@ -2,7 +2,7 @@
 #
 # DELIBERATELY GATED to manual dispatch: the site contains the full document, and this
 # repo is the public engine - the document it renders is private and reachable only
-# with THESIS_REPO_TOKEN. Do not add push/PR triggers, and do not enable Pages, until
+# with DOC_REPO_TOKEN. Do not add push/PR triggers, and do not enable Pages, until
 # gates recorded in the document's own publishing.md have cleared. Running this
 # workflow today will render
 # fine and then fail at the deploy step unless Pages has been enabled - that is the
@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: corson94/thesis-latex
-          token: ${{ secrets.THESIS_REPO_TOKEN }}
+          token: ${{ secrets.DOC_REPO_TOKEN }}
           path: thesis
 
       - uses: actions/setup-python@v5
@@ -40,17 +40,17 @@ jobs:
         with:
           version: "1.10.18"
 
-      - name: Install thesis-agent
+      - name: Install doc-publish
         run: pip install .
 
       # State (page plan, anchor map, signposts) rides along in the document checkout
-      # under .thesis-agent/, so anchors stay stable without extra wiring here.
+      # under .doc-publish/, so anchors stay stable without extra wiring here.
       - name: Build corpus and site
         env:
-          THESIS_REPO: ${{ github.workspace }}/thesis
+          DOC_REPO: ${{ github.workspace }}/thesis
         run: |
-          thesis-agent build
-          thesis-agent site
+          doc-publish build
+          doc-publish site
 
       - uses: actions/upload-pages-artifact@v3
         with:

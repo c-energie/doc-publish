@@ -1,13 +1,13 @@
-# thesis-agent
+# doc-publish
 
 Turn a LaTeX thesis or paper into a queryable corpus, a Notion wiki, and an
 offline-capable website — from one parse and one page plan, so the streams cannot drift.
 
 ```
-LaTeX document ──ingest──> corpus_public.md ──┬──> Notion wiki      (thesis-agent sync)
-   (THESIS_REPO)           corpus_draft.md    ├──> Quarto site      (thesis-agent site)
-                           labels/figures ────┼──> publish repo     (thesis-agent publish)
-                                              └──> chat server      (thesis-agent app)
+LaTeX document ──ingest──> corpus_public.md ──┬──> Notion wiki      (doc-publish sync)
+   (DOC_REPO)           corpus_draft.md    ├──> Quarto site      (doc-publish site)
+                           labels/figures ────┼──> publish repo     (doc-publish publish)
+                                              └──> chat server      (doc-publish app)
 ```
 
 Written for one thesis and then generalised. It knows about `subfiles`, `\ExecuteMetaData`
@@ -20,23 +20,23 @@ conventions a real document accumulates, rather than a clean-room subset.
 pip install -e .                # ingest + publish
 pip install -e ".[app]"         # + the chat server
 pip install -e ".[dev]"         # + pytest;  then: pytest tests -q
-cp .env.example .env            # then fill in THESIS_REPO
+cp .env.example .env            # then fill in DOC_REPO
 ```
 
-Only `THESIS_REPO` is required. `thesis-agent config` prints how every setting resolved
+Only `DOC_REPO` is required. `doc-publish config` prints how every setting resolved
 and from where, which is the fastest way to diagnose a path problem.
 
 ## Use
 
 ```bash
-thesis-agent build              # LaTeX -> corpora, labels, figure manifest
-thesis-agent site               # -> the rendered site (needs Quarto)
-thesis-agent serve              # view it locally
-thesis-agent sync               # -> Notion (idempotent; a second run makes 0 writes)
-thesis-agent publish            # -> copy site + corpus into the publish repo
+doc-publish build              # LaTeX -> corpora, labels, figure manifest
+doc-publish site               # -> the rendered site (needs Quarto)
+doc-publish serve              # view it locally
+doc-publish sync               # -> Notion (idempotent; a second run makes 0 writes)
+doc-publish publish            # -> copy site + corpus into the publish repo
 ```
 
-`thesis-agent build` exits non-zero on any unresolved macro, missing live figure asset,
+`doc-publish build` exits non-zero on any unresolved macro, missing live figure asset,
 or ambiguous figure filename. Treat that as a build failure, not a warning.
 
 ## Two corpora — the decision that matters most
@@ -58,7 +58,7 @@ public build wastes the most useful material in the repo. Hence both, selected b
 
 Publishing state — the Notion page-id manifest, the anchor map, signposts, the
 document-specific answering rules — lives in **the document repo**, under
-`.thesis-agent/`, not in this one.
+`.doc-publish/`, not in this one.
 
 Two reasons. It is keyed to labels in that repo, so co-locating them means an older
 checkout carries matching state instead of drifting. And this repo is public while most
@@ -75,9 +75,9 @@ Start by scaffolding the contract into your document repo, which writes the file
 and two Claude skills for authoring them:
 
 ```bash
-export THESIS_REPO=/path/to/my-document
-thesis-agent init      # write .thesis-agent/ and .claude/skills/
-thesis-agent check     # report what is still unfinished
+export DOC_REPO=/path/to/my-document
+doc-publish init      # write .doc-publish/ and .claude/skills/
+doc-publish check     # report what is still unfinished
 ```
 
 `check` is worth re-running after any preamble change: it catches an unfinished prompt and
@@ -85,9 +85,9 @@ any macro your document defines that the adapter has never heard of. Unhandled, 
 macro does not error — it survives into the corpus as raw LaTeX and is quoted to a reader
 verbatim.
 
-`thesis_agent/config.py` is the only place paths are decided. Beyond that:
+`doc_publish/config.py` is the only place paths are decided. Beyond that:
 
-- `.thesis-agent/prompt.md` in your document repo — a `# Document` section describing
+- `.doc-publish/prompt.md` in your document repo — a `# Document` section describing
   what the text is, and a `# Rules` section for the distinctions that are load-bearing in
   your argument. The generic prompt (citations, the demonstrated/argued/extrapolated
   tiers, figure honesty) is in `app/prompt.py` and needs no editing.

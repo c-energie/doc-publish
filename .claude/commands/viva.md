@@ -18,7 +18,7 @@ Viva-prep lookup on: $ARGUMENTS
 4. End with the two or three questions an examiner would most plausibly ask about this,
    and where the answer would have to come from.
 
-Check `$THESIS_REPO/.thesis-agent/prompt.md` before answering: it records which of this
+Check `$DOC_REPO/.doc-publish/prompt.md` before answering: it records which of this
 document's comparisons establish what, and which numbers are contested. Those
 distinctions are the ones an examiner presses on, and they cannot be inferred from the
 corpus alone.

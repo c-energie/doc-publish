@@ -1,9 +1,9 @@
-# thesis-agent
+# doc-publish
 
 The engine that turns a LaTeX document into a corpus, a Notion wiki and a site. This repo
 is **generic and public**. Everything specific to a particular document — its subject, its
 answering rules, its publishing state — lives in that document's repo under
-`.thesis-agent/`, located by `THESIS_REPO`.
+`.doc-publish/`, located by `DOC_REPO`.
 
 Nothing document-specific belongs in this repo. If you find yourself writing a chapter
 number, a dataset name or a result into a file here, it goes in the state directory
@@ -12,7 +12,7 @@ instead.
 ## Architecture
 
 ```
-src/thesis_agent/
+src/doc_publish/
   config.py     every path and secret, resolved once. Nothing else reads os.environ
                 for a path. Real env vars beat .env; missing settings raise ConfigError
                 with the variable name, never a silent default.
@@ -44,9 +44,9 @@ document's own `macros.py` (see `ingest/adapter.py`). Most documents have none.
 ## Working on it
 
 ```powershell
-$env:THESIS_REPO = "<path to the document repo>"
-thesis-agent config      # how every setting resolved, and from where
-thesis-agent build       # non-zero on unresolved macros, missing assets, ambiguous names
+$env:DOC_REPO = "<path to the document repo>"
+doc-publish config      # how every setting resolved, and from where
+doc-publish build       # non-zero on unresolved macros, missing assets, ambiguous names
 ```
 
 A non-zero build is a failure, not a warning. `build/` and `data/` are gitignored and must
@@ -60,7 +60,7 @@ path hard-fails under `CORPUS_MODE=draft` and scans its payload for the draft ma
 ## Answering questions about the document
 
 When asked anything about the document itself, answer from `build/corpus_draft.md`, and
-**first read `$THESIS_REPO/.thesis-agent/prompt.md`** — it holds the document's own
+**first read `$DOC_REPO/.doc-publish/prompt.md`** — it holds the document's own
 answering rules: what its comparisons do and do not establish, which numbers are
 contested, how to pitch the language. Those rules are not in this repo and cannot be
 inferred from the corpus.
@@ -100,7 +100,7 @@ the manifest indexes by name, so a rename breaks both with no error.
 
 ## Publishing
 
-`thesis-agent sync` is idempotent: unchanged pages make zero API writes, and a second
-consecutive run must report `0 writes`. `thesis-agent publish` writes files into
-`THESIS_PUBLISH_REPO` and never commits — see `docs/publishing.md` for what is gated and
+`doc-publish sync` is idempotent: unchanged pages make zero API writes, and a second
+consecutive run must report `0 writes`. `doc-publish publish` writes files into
+`DOC_PUBLISH_REPO` and never commits — see `docs/publishing.md` for what is gated and
 why the first push of a public site is the irreversible step.
