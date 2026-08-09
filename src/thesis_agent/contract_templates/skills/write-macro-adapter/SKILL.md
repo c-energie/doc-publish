@@ -29,17 +29,28 @@ an entry, because that meaning is what a reader of the published version must se
 
 ## The contract
 
-Pure text to text, called once at the start of expansion, and **deterministic** — a wiki
-publisher hashes rendered content to decide what to rewrite, so a function that expands
-the same input two different ways produces spurious edits on every sync.
+Pure text to text, called once at the start of expansion, and **deterministic** — the
+Notion publisher hashes rendered content to decide what to rewrite, so a function that
+expands the same input two different ways produces spurious edits on every sync.
 
 ```python
-def expand(text: str) -> tuple[str, list[str]]:
-    """Returns the expanded text, and a list of human-readable problems."""
+def expand(text, vocab, unresolved) -> str:
+    """Expand this document's macros. Returns the expanded text."""
 ```
 
-Return problems rather than raising. The flattener surfaces them as build-report entries;
-raising aborts a publish over one malformed macro in one paragraph.
+- `vocab` — the document's loaded vocabulary (acronyms, glossary entries), for macros
+  whose expansion depends on it. Ignore it if yours do not.
+- `unresolved` — a list to **append** problems to. Do not return them, and do not raise:
+  the flattener surfaces the list as build-report entries, whereas raising aborts a whole
+  publish over one malformed macro in one paragraph.
+- Returning anything but a string raises `AdapterError`.
+
+There is an optional second hook, `vocabulary() -> list[str]`, returning extra vocabulary
+lines to prepend to the corpus. A module must define at least one of the two, or loading
+it is an error — an adapter that defines neither is almost always a typo.
+
+Check the real signature in `thesis_agent/ingest/adapter.py` before writing: it is the
+kind of thing that changes, and a mismatch fails at flatten time rather than at import.
 
 ## How to write one
 
@@ -56,20 +67,18 @@ raising aborts a publish over one malformed macro in one paragraph.
 ```python
 FOO = re.compile(r"\\foo\{([^}]*)\}")
 
-def expand(text: str) -> tuple[str, list[str]]:
-    problems: list[str] = []
-
-    def foo(match: re.Match) -> str:
+def expand(text, vocab, unresolved):
+    def foo(match):
         key = match.group(1).strip()
         if key not in TABLE:
-            problems.append(rf"\foo{{{key}}}: unknown key")
-            return key                      # conservative, not invented
+            unresolved.append(rf"\foo{{{key}}}: unknown key")
+            return key                      # conservative, never invented
         return TABLE[key]
 
     text = FOO.sub(foo, text)
     for leftover in sorted(set(re.findall(r"\\(foo)\b", text))):
-        problems.append(rf"\{leftover} survived expansion")
-    return text, problems
+        unresolved.append(rf"\{leftover} survived expansion")
+    return text
 ```
 
 ## Verifying

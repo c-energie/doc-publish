@@ -34,7 +34,7 @@ dev = ["pytest>=8"]
 thesis-agent = "thesis_agent.cli:main"
 
 [project.urls]
-Repository = "https://github.com/corson94/thesis-agent"
+Repository = "https://github.com/c-energie/thesis-agent"
 
 [tool.setuptools.packages.find]
 where = ["src"]

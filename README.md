@@ -19,6 +19,7 @@ conventions a real document accumulates, rather than a clean-room subset.
 ```bash
 pip install -e .                # ingest + publish
 pip install -e ".[app]"         # + the chat server
+pip install -e ".[dev]"         # + pytest;  then: pytest tests -q
 cp .env.example .env            # then fill in THESIS_REPO
 ```
 
@@ -69,6 +70,20 @@ every page. Losing `anchor_map.json` breaks every inbound link into the site. Co
 in the document repo; they are small.
 
 ## Adapting it to your document
+
+Start by scaffolding the contract into your document repo, which writes the files below
+and two Claude skills for authoring them:
+
+```bash
+export THESIS_REPO=/path/to/my-document
+thesis-agent init      # write .thesis-agent/ and .claude/skills/
+thesis-agent check     # report what is still unfinished
+```
+
+`check` is worth re-running after any preamble change: it catches an unfinished prompt and
+any macro your document defines that the adapter has never heard of. Unhandled, such a
+macro does not error — it survives into the corpus as raw LaTeX and is quoted to a reader
+verbatim.
 
 `thesis_agent/config.py` is the only place paths are decided. Beyond that:
 
