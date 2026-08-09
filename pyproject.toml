@@ -40,7 +40,10 @@ Repository = "https://github.com/corson94/thesis-agent"
 where = ["src"]
 
 [tool.setuptools.package-data]
-thesis_agent = ["web/*.html"]
+# contract_templates/ is what `thesis-agent init` writes into a document repo, so the
+# skeletons ship with the engine rather than being hand-copied into each document — one
+# owner for the contract, and no silent drift when its shape changes.
+thesis_agent = ["web/*.html", "contract_templates/*", "contract_templates/skills/*/*"]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

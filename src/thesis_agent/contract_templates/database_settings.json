@@ -1,0 +1,53 @@
+{
+  "_comment": "Schemas for the databases a wiki publisher creates alongside the document. Property names are the contract: renaming one here orphans the column in an already-published database rather than renaming it. Delete a database you do not want created.",
+  "references": {
+    "title": "References",
+    "icon": "🔖",
+    "is_inline": false,
+    "description": "Works cited, one row per bibliography entry.",
+    "properties": {
+      "Title": { "title": {} },
+      "Authors": { "rich_text": {} },
+      "Year": { "number": { "format": "number" } },
+      "DOI": { "url": {} },
+      "Type": {
+        "select": {
+          "options": [
+            { "name": "article", "color": "blue" },
+            { "name": "book", "color": "green" },
+            { "name": "inproceedings", "color": "orange" },
+            { "name": "report", "color": "brown" },
+            { "name": "thesis", "color": "purple" },
+            { "name": "misc", "color": "gray" }
+          ]
+        }
+      },
+      "Cited in": { "rich_text": {} }
+    }
+  },
+  "glossary": {
+    "title": "Glossary",
+    "icon": "📖",
+    "is_inline": false,
+    "description": "Acronyms and terms, from glossary_terms.tex.",
+    "properties": {
+      "Term": { "title": {} },
+      "Short": { "rich_text": {} },
+      "Definition": { "rich_text": {} },
+      "Used in": { "rich_text": {} }
+    }
+  },
+  "figures": {
+    "title": "Figures",
+    "icon": "📊",
+    "is_inline": false,
+    "description": "One row per figure, linking the static image to its interactive export.",
+    "properties": {
+      "Label": { "title": {} },
+      "Caption": { "rich_text": {} },
+      "Section": { "rich_text": {} },
+      "Interactive": { "url": {} },
+      "Source notebook": { "rich_text": {} }
+    }
+  }
+}

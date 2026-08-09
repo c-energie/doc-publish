@@ -13,6 +13,8 @@ import sys
 USAGE = """thesis-agent <command> [options]
 
   config     show how every setting resolved, and from where
+  init       write the contract skeletons into a document repo
+  check      report what is unfinished in a document's contract
   build      LaTeX -> corpus_public.md, corpus_draft.md, labels, figure manifest
   figures    map interactive .html exports onto figure labels
   sync       publish the public corpus to Notion (idempotent)
@@ -79,8 +81,18 @@ def _lazy(module: str):
     return run
 
 
+def _contract(attr: str):
+    """init/check live in one module; defer the import like every other handler."""
+    def run(argv: list[str]) -> int:
+        from . import contract
+        return getattr(contract, attr)(argv)
+    return run
+
+
 COMMANDS = {
     "config": _config,
+    "init": _contract("init"),
+    "check": _contract("check"),
     "build": _lazy("thesis_agent.ingest.build"),
     "figures": _lazy("thesis_agent.ingest.manifest"),
     "sync": _lazy("thesis_agent.publish.sync"),

@@ -1,0 +1,11 @@
+# Publisher-generated state. See README.md: these belong to a project, not to a
+# template, so they are ignored here.
+#
+# In your own repository you may well want to COMMIT the first two — losing
+# notion_manifest.json duplicates an entire published wiki, and losing anchor_map.json
+# breaks every inbound URL. Decide deliberately, then delete the lines below.
+notion_manifest.json
+anchor_map.json
+
+# Build reports, regenerated on every publish.
+*_report.md
