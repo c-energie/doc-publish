@@ -29,9 +29,27 @@ from typing import Any
 from . import adapter
 
 ROOT = "main.tex"
+#: Historical default, kept as the name tried first so a document already using it keeps
+#: its previous behaviour exactly. settings_files() is what callers should use.
 SETTINGS = "custom_settings.sty"
 GLOSSARY = "glossary_terms.tex"
 BIB_PATHS = ["Bibliographies/bib.bib", "Bibliographies/references.bib"]
+
+
+def settings_files(repo: Path) -> list[Path]:
+    """The document's own package files at the repo root, preferred name first.
+
+    This was a single hardcoded filename, which is one document's habit rather than a
+    LaTeX convention: a repo calling it `document_settings.sty` had its \\graphicspath and
+    all of its zero-argument literals silently ignored, so every one of those macros
+    reached the corpus as raw LaTeX with nothing reporting it. Scanning the root costs
+    nothing — documents have one or two — and takes a naming coincidence out of the
+    contract.
+    """
+    preferred = Path(repo) / SETTINGS
+    rest = sorted(p for p in Path(repo).glob("*.sty") if p != preferred)
+    return ([preferred] if preferred.exists() else []) + rest
+
 
 INCLUDE_RE = re.compile(r"\\(?:subfile|input|include)\{([^}]+)\}")
 DOCCLASS_RE = re.compile(r"\\documentclass(?:\[[^\]]*\])?\{subfiles\}")
@@ -417,11 +435,9 @@ def literal_macros(repo: Path) -> dict[str, str]:
     picture) are skipped: those are layout, they never carry meaning in prose, and
     substituting them would put raw LaTeX into the corpus in place of a clean marker.
     """
-    path = repo / SETTINGS
-    if not path.exists():
-        return {}
     out: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for path in settings_files(repo):
+      for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         if line.lstrip().startswith("%"):
             continue
         body_line = re.split(r"(?<!\\)%", line)[0]
@@ -441,11 +457,9 @@ def document_macros(repo: Path) -> set[str]:
     Commented-out definitions are skipped, and internal `@` names are ignored: those are
     implementation details of other macros and never appear in prose.
     """
-    path = repo / SETTINGS
-    if not path.exists():
-        return set()
     names: set[str] = set()
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for path in settings_files(repo):
+      for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         if line.lstrip().startswith("%"):
             continue
         body = re.split(r"(?<!\\)%", line)[0]

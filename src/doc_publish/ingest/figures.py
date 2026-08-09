@@ -15,7 +15,7 @@ import re
 import shutil
 from pathlib import Path
 
-from .flatten import LABEL_RE, _brace, inline
+from .flatten import LABEL_RE, _brace, inline, settings_files
 
 SETTINGS = "custom_settings.sty"
 GRAPHICSPATH_RE = re.compile(r"\\graphicspath\{(.*?)\n\}", re.S)
@@ -25,11 +25,14 @@ EXTS = (".png", ".pdf", ".jpg", ".jpeg", ".eps")
 
 
 def graphics_roots(repo: Path) -> list[Path]:
-    raw = (repo / SETTINGS).read_text(encoding="utf-8", errors="replace")
-    m = GRAPHICSPATH_RE.search(raw)
-    if not m:
-        return [repo]
-    return [repo / p for p in re.findall(r"\{([^{}]+)\}", m.group(1))]
+    # \graphicspath may live in any of the document's own .sty files, not only one
+    # with an assumed name; the first that declares it wins.
+    for path in settings_files(repo):
+        raw = path.read_text(encoding="utf-8", errors="replace")
+        m = GRAPHICSPATH_RE.search(raw)
+        if m:
+            return [repo / p for p in re.findall(r"\{([^{}]+)\}", m.group(1))]
+    return [repo]
 
 
 def resolve(name: str, roots: list[Path], repo: Path) -> list[Path]:

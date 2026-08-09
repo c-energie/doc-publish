@@ -117,16 +117,33 @@ def init(argv: list[str] | None = None) -> int:
 
 # -------------------------------------------------------------------------- check
 
-def _defined_macros(repo: Path) -> set[str]:
-    """Macro names this document defines in its own .sty / preamble sources."""
-    names: set[str] = set()
+def _defined_macros(repo: Path) -> tuple[set[str], set[str]]:
+    """Macros this document defines, split into (needs an adapter, handled already).
+
+    A zero-argument `\\newcommand` with a plain-text body is expanded by the flattener
+    before the adapter is ever consulted, so reporting one as unhandled is noise — and
+    noise in a check is worse than silence, because it trains you to skim past the real
+    entries.
+
+    The handled set comes from calling `literal_macros()` itself rather than re-deriving
+    it from the pattern it uses. The two differ: the pattern matches the *shape* of a
+    zero-argument definition, while the function additionally skips bodies containing
+    commands or braces (`\\width` -> `0.95\\textwidth`, `\\reddot` -> a tikz picture),
+    which it deliberately leaves alone as layout. Reusing the regex would quietly mark
+    those as handled when the flattener never touches them — under-reporting, which is the
+    worse failure for a check whose whole job is to notice what nobody has decided about.
+    """
+    from .ingest.flatten import literal_macros
+
+    handled = set(literal_macros(repo))
+    defined: set[str] = set()
     for path in list(repo.glob("*.sty")) + list(repo.glob("Preamble/*.tex")):
         text = path.read_text(encoding="utf-8", errors="replace")
         for line in text.splitlines():
             if line.lstrip().startswith("%"):
                 continue
-            names.update(MACRO_DEF.findall(line))
-    return names
+            defined.update(MACRO_DEF.findall(line))
+    return defined - handled, handled & defined
 
 
 def check(argv: list[str] | None = None) -> int:
@@ -165,13 +182,13 @@ def check(argv: list[str] | None = None) -> int:
     macros_path = state / "macros.py"
     if macros_path.exists():
         adapter = macros_path.read_text(encoding="utf-8", errors="replace")
-        defined = _defined_macros(repo)
+        defined, literals = _defined_macros(repo)
         # Mentioned anywhere in the adapter counts as handled — including inside the
         # IGNORED set, which is how an author records "considered, needs no entry" for a
         # layout shorthand. Substring matching keeps that escape hatch cheap.
         unhandled = sorted(m for m in defined if m not in adapter)
         if unhandled:
-            print(f"\n  {len(unhandled)} macro(s) defined by the document with no entry "
+            print(f"\n  {len(unhandled)} macro(s) taking arguments with no entry "
                   f"in macros.py:")
             for name in unhandled:
                 print(f"      \\{name}")
@@ -180,7 +197,11 @@ def check(argv: list[str] | None = None) -> int:
                   "      IGNORED to record that it deliberately needs none.")
             problems += 1
         elif defined:
-            print(f"\n  ok       all {len(defined)} document macro(s) appear in macros.py")
+            print(f"\n  ok       all {len(defined)} macro(s) taking arguments appear "
+                  f"in macros.py")
+        if literals:
+            print(f"  ok       {len(literals)} zero-argument literal(s) expanded by the "
+                  f"flattener, no entry needed")
 
     present = [n for n in STATE_FILES if (state / n).exists()]
     if present:

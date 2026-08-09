@@ -119,6 +119,30 @@ def test_ignored_silences_a_layout_shorthand(document, capsys):
     assert "width" not in capsys.readouterr().out.split("ok       all")[-1]
 
 
+def test_zero_argument_literals_are_not_reported(document, capsys):
+    """The flattener expands these before the adapter runs, so flagging them is noise."""
+    init(document)
+    _finish_prompt(document)
+    with (document / "document_settings.sty").open("a", encoding="utf-8") as f:
+        f.write("\\newcommand{\\nmodels}{40}\n")
+
+    assert check(document) == 0
+    out = capsys.readouterr().out
+    assert "nmodels" not in out
+    assert "zero-argument literal" in out
+
+
+def test_a_macro_with_arguments_is_still_reported(document, capsys):
+    """The distinction is the [n], not the name: same document, opposite verdict."""
+    init(document)
+    _finish_prompt(document)
+    with (document / "document_settings.sty").open("a", encoding="utf-8") as f:
+        f.write("\\newcommand{\\nmodels}[1]{model #1}\n")
+
+    assert check(document) == 1
+    assert "nmodels" in capsys.readouterr().out
+
+
 def test_check_ignores_commented_out_definitions(document):
     init(document)
     _finish_prompt(document)
