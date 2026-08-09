@@ -34,7 +34,7 @@ dev = ["pytest>=8"]
 doc-publish = "doc_publish.cli:main"
 
 [project.urls]
-Repository = "https://github.com/c-energie/doc-publish"
+Repository = "https://github.com/corson94/doc-publish"
 
 [tool.setuptools.packages.find]
 where = ["src"]
