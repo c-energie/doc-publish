@@ -52,8 +52,8 @@ document's own `macros.py` (see `ingest/adapter.py`). Most documents have none.
 
 ```powershell
 uv sync --extra dev                 # + --extra app for the chat server, --extra agent for the SDK backend
-uv run pytest tests -q
-uv run pytest tests/test_contract.py::test_check_fails_on_an_unfinished_prompt -q
+uv run python -m pytest tests -q    # `uv run pytest` fails here: "trampoline failed to canonicalize script path"
+uv run python -m pytest tests/test_contract.py::test_check_fails_on_an_unfinished_prompt -q
 
 $env:DOC_REPO = "<path to the document repo>"
 doc-publish config      # how every setting resolved, and from where
