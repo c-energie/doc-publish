@@ -16,6 +16,7 @@ dist/
 
 # Local configuration. Never commit: it names private repo paths and may carry tokens.
 .env
+.idea/
 
 __pycache__/
 *.pyc
