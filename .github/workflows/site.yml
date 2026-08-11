@@ -7,6 +7,12 @@
 # workflow today will render
 # fine and then fail at the deploy step unless Pages has been enabled - that is the
 # intended failure mode.
+#
+# The document is named by the DOCUMENT_REPO *variable* (Settings -> Secrets and
+# variables -> Actions -> Variables), not by a literal here: this repo is public and the
+# document usually is not, so its name does not belong in the source. A variable rather
+# than a secret because a repo slug is not a credential, and secret masking would garble
+# it in the logs exactly when a checkout failure needs reading.
 name: site
 on:
   workflow_dispatch:
@@ -25,10 +31,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # An unset variable expands to an empty string, and checkout then fails on a slug
+      # it cannot parse - or worse, falls back to this repo, and the build reports "no
+      # main.tex" two steps later, naming the wrong cause. Fail here, naming the setting,
+      # the way config.py does for everything else.
+      - name: Require DOCUMENT_REPO
+        run: |
+          test -n "${{ vars.DOCUMENT_REPO }}" || {
+            echo "::error::DOCUMENT_REPO is not set - it should be the owner/name of the LaTeX document repo"
+            exit 1
+          }
+
       - name: Check out the document source
         uses: actions/checkout@v4
         with:
-          repository: corson94/thesis-latex
+          repository: ${{ vars.DOCUMENT_REPO }}
           token: ${{ secrets.DOC_REPO_TOKEN }}
           path: thesis
 
