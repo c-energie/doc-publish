@@ -12,6 +12,7 @@ import sys
 
 USAGE = """doc-publish <command> [options]
 
+  env        write a .env from the shipped template, or audit the one already here
   config     show how every setting resolved, and from where
   init       write the contract skeletons into a document repo
   check      report what is unfinished in a document's contract
@@ -90,6 +91,7 @@ def _contract(attr: str):
 
 
 COMMANDS = {
+    "env": _lazy("doc_publish.envfile"),
     "config": _config,
     "init": _contract("init"),
     "check": _contract("check"),

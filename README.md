@@ -20,11 +20,16 @@ conventions a real document accumulates, rather than a clean-room subset.
 pip install -e .                # ingest + publish
 pip install -e ".[app]"         # + the chat server
 pip install -e ".[dev]"         # + pytest;  then: pytest tests -q
-cp .env.example .env            # then fill in DOC_REPO
+doc-publish env                 # write a .env here;  then fill in DOC_REPO
 ```
 
 Only `DOC_REPO` is required. `doc-publish config` prints how every setting resolved
 and from where, which is the fastest way to diagnose a path problem.
+
+`doc-publish env` never overwrites an existing `.env` — it may hold the only copy of a
+token, and there is no `--force`. Run against one that exists, it audits instead: which
+required settings are absent, which keys are unrecognised, and which are spelled with a
+pre-rename `THESIS_*` name that still works but should be migrated.
 
 ## Use
 

@@ -40,7 +40,12 @@ where = ["src"]
 # contract_templates/ is what `doc-publish init` writes into a document repo, so the
 # skeletons ship with the engine rather than being hand-copied into each document — one
 # owner for the contract, and no silent drift when its shape changes.
-doc_publish = ["web/*.html", "contract_templates/*", "contract_templates/skills/*/*"]
+#
+# templates/ is the same idea for the engine's own configuration: `doc-publish env`
+# writes env.example from here. Separate from contract_templates/ because that directory
+# is what a *document* repo receives, and this file never goes there.
+doc_publish = ["web/*.html", "templates/*", "contract_templates/*",
+               "contract_templates/skills/*/*"]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
