@@ -9,6 +9,13 @@ Nothing document-specific belongs in this repo. If you find yourself writing a c
 number, a dataset name or a result into a file here, it goes in the state directory
 instead.
 
+A document set up before the rename keeps its state in `.thesis-agent/`, and `config.py`
+still honours it whenever the new name is absent. Never "fix" that by pointing at
+`.doc-publish/` and finding nothing: the next sync would then create a **second copy of
+the whole wiki**, orphaning every existing page and every link into them. Migrate with
+`git mv` in the document repo and commit it. `DOC_*` settings likewise fall back to their
+old `THESIS_*` spellings, with a note printed once per name.
+
 ## Architecture
 
 ```
@@ -44,10 +51,22 @@ document's own `macros.py` (see `ingest/adapter.py`). Most documents have none.
 ## Working on it
 
 ```powershell
+uv sync --extra dev                 # + --extra app for the chat server, --extra agent for the SDK backend
+uv run pytest tests -q
+uv run pytest tests/test_contract.py::test_check_fails_on_an_unfinished_prompt -q
+
 $env:DOC_REPO = "<path to the document repo>"
 doc-publish config      # how every setting resolved, and from where
 doc-publish build       # non-zero on unresolved macros, missing assets, ambiguous names
 ```
+
+There is no linter or formatter here; `pytest` is the whole check.
+
+`doc-publish agent` must be run as that subcommand, never under the uvicorn CLI. Uvicorn
+installs `WindowsSelectorEventLoopPolicy` on startup, and a selector loop cannot spawn
+subprocesses — which is exactly how the Agent SDK backend works, so the two are mutually
+exclusive. `--reload` is unavailable there for the same reason: the reloader's child
+re-creates the loop under uvicorn's policy. Restart it by hand. See `cli.py`.
 
 A non-zero build is a failure, not a warning. `build/` and `data/` are gitignored and must
 stay that way: the draft corpus carries source comments, provisional numbers and open
@@ -99,6 +118,15 @@ Never rename a committed figure PNG; LaTeX resolves bare filenames via `\graphic
 the manifest indexes by name, so a rename breaks both with no error.
 
 ## Publishing
+
+The Notion and Quarto streams are not independent. Both build their page plan from
+`structure.build_plan`, with the pinned placements read from the Notion manifest, so the
+two keep identical page boundaries and a change to the plan lands on both. The pin is
+what makes that safe: a section's first paged/inlined decision is recorded and later runs
+never restructure on their own — promoting a section moves its content to a new page ID,
+which breaks every inbound link and orphans any comments on it. A run whose fresh
+verdict disagrees with the pin *reports* it ("§6.3 now exceeds threshold — promote?") and
+keeps the pin. Promotion means deleting the pin from the manifest by hand and re-running.
 
 `doc-publish sync` is idempotent: unchanged pages make zero API writes, and a second
 consecutive run must report `0 writes`. `doc-publish publish` writes files into

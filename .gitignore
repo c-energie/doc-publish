@@ -6,9 +6,10 @@ build/
 data/
 
 # Site build products now default to inside build/, but stay ignored for older checkouts
-# and for anyone who points THESIS_SITE_DIR back here. The state that must survive a
+# and for anyone who points DOC_SITE_DIR back here. The state that must survive a
 # rebuild - anchor map, Notion manifest, signposts - lives in the document repo under
-# .thesis-agent/, not here. See config.state_dir for why.
+# .doc-publish/ (or .thesis-agent/ for a document set up before the rename), not here.
+# See config.state_dir for why.
 site/
 site_build/
 dist/
