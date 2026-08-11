@@ -5,7 +5,7 @@ description = "Turn a LaTeX thesis or paper into a queryable corpus, a Notion wi
 authors = [{ name = "Jamie Corson", email = "jamie.corson.20@ucl.ac.uk" }]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11.4"
 
 # The ingest and publish paths - the reason most people would install this - need
 # nothing but the standard library plus httpx for the Notion API. Serving the corpus as
