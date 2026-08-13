@@ -113,9 +113,23 @@ show one. If an asset's status is `pending`, `missing` or `ambiguous`, say so. N
 describe a figure from its caption alone — a caption plus a confident description is a
 fabricated result with a real label attached to it.
 
-`ambiguous` means two files matched: the unique-figure-name convention has been broken.
-Never rename a committed figure PNG; LaTeX resolves bare filenames via `\graphicspath` and
-the manifest indexes by name, so a rename breaks both with no error.
+A static may be a **PDF**: a document whose figures come from a plotly pipeline exports
+vector, because LaTeX embeds PDF natively. Only figures with no interactive export stay
+raster. That is not a free choice — a PDF renders in neither a Notion image block nor an
+HTML `<img>`, so a figure without an export must be raster or it appears nowhere.
+
+`ambiguous` means two files matched the same stem: the unique-figure-name convention has
+been broken, and the figure is dropped from *both* published streams while the LaTeX
+carries on compiling from whichever the graphics extension order picked. The producing
+pipeline must delete a static it supersedes rather than leaving both. Never rename a
+committed figure; LaTeX resolves bare stems via `\graphicspath` and the manifest indexes
+by name, so a rename breaks both with no error.
+
+**Order matters:** `doc-publish figures` writes `build/figures_manifest.json`, mapping
+labels to their `.html` exports. It is what lets the Notion stream embed the hosted plot
+instead of a picture of it; without it every figure falls back to its static image, which
+for a PDF static means it does not publish at all. `sync` reports that rather than
+emitting silently empty figure cards.
 
 ## Publishing
 

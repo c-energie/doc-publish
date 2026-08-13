@@ -159,6 +159,9 @@ def main(argv: list[str] | None = None) -> int:
 
     labels = load_json(BUILD / "labels.json", {})
     figures = load_json(BUILD / "figures.json", [])
+    # Written by `doc-publish figures`; absent until that has run, and every figure then
+    # publishes as its static image rather than an embed of the hosted plot.
+    interactive = load_json(BUILD / "figures_manifest.json", {})
     annotations = load_json(BUILD / "annotations.json", [])
 
     # labels.json only records labels near section headings - figure/table labels
@@ -290,10 +293,15 @@ def main(argv: list[str] | None = None) -> int:
     base_url = os.environ.get("FIGURES_BASE_URL") or None
     linker = Linker(plan, labels, page_ids, figures, base_url,
                     citation_urls=cit_urls, refs_db_url=refs_db_url,
-                    float_labels=set(float_labels))
+                    float_labels=set(float_labels), interactive=interactive)
     if base_url is None:
         report.append("FIGURES_BASE_URL not set - figures published as "
                       "'hosting pending' placeholders")
+    elif not interactive:
+        report.append("build/figures_manifest.json missing - every figure publishes as a "
+                      "static image, not an embed of the hosted plot. Run "
+                      "`doc-publish figures`. Statics exported as PDF cannot be shown in "
+                      "a Notion image block, so those figures will not render.")
 
     approved_signposts = signposts.approved(signpost_path, section_titles, report)
 

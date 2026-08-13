@@ -21,11 +21,25 @@ Page anatomy:
   (max 3 across). Toggle/card children that exceed the API's nesting-per-request limit
   travel via `_deferred` and notion.append_tree.
 
-Figures: caption + static image (external URL) + "Open interactive figure ↗" link.
+Figures, in preference order per figure - the same ladder the Quarto site uses, so the
+two streams agree on what each figure is:
+
+  1. interactive - an embed block for the .html export named in figures_manifest.json,
+     which Notion renders as a live iframe of the hosted plot;
+  2. static      - the image the ingest build resolved, as an external-URL image block.
+
+An embed is only emitted for a figure the manifest actually lists an export for. That
+matters more since the statics went vector: a plotly figure's static is now a PDF, which
+Notion cannot render in an image block, so a figure with no export must fall back to
+something that can be shown - which is why figures not yet migrated to plotly stay PNG.
+
 URL convention: {FIGURES_BASE_URL}/{asset filename} for the static image and
-{FIGURES_BASE_URL}/{asset stem}.html for the interactive version. Until the figures
+{FIGURES_BASE_URL}/{export filename} for the interactive version. Until the figures
 repo exists (FIGURES_BASE_URL unset) a neutral placeholder card is emitted instead -
 inventing URLs would publish dead links with real figure labels on them.
+
+The "Open ... ↗" link is likewise emitted only where an export exists. It used to be
+unconditional, which published a dead link under every unmigrated figure.
 """
 from __future__ import annotations
 
@@ -62,7 +76,12 @@ class Linker:
                  figures: list[dict], base_url: str | None,
                  citation_urls: dict[str, str] | None = None,
                  refs_db_url: str | None = None,
-                 float_labels: set[str] | None = None):
+                 float_labels: set[str] | None = None,
+                 interactive: dict[str, dict] | None = None):
+        # label -> {"interactive": <path relative to build/>, "static": ...}, as written
+        # by `doc-publish figures` (ingest/manifest.py). Absent when that step has not
+        # run, and every figure then falls back to its static image.
+        self.interactive = interactive or {}
         self.float_labels = float_labels or set()
         self.plan = plan
         self.page_ids = page_ids                      # page_key -> notion page id
@@ -204,17 +223,30 @@ class Linker:
             return _callout("📊", "default", title,
                             children=[{"type": "paragraph", "paragraph": {"rich_text": body}}])
 
+        export = self.interactive.get(frag.label, {}).get("interactive")
         children: list[dict] = []
-        for asset in entry["assets"]:
-            name = Path(asset["path"]).name
-            children.append({"type": "image", "image": {
-                "type": "external", "external": {"url": f"{self.base_url}/{name}"}}})
+        if export:
+            # The hosted plot itself. Notion renders an embed as an iframe of the URL,
+            # so the reader gets the live figure - hover, zoom, legend - rather than a
+            # picture of it. Only the file name is used: the manifest path is relative
+            # to build/, while the export is served flat from FIGURES_BASE_URL.
+            children.append({"type": "embed",
+                             "embed": {"url": f"{self.base_url}/{Path(export).name}"}})
+        else:
+            for asset in entry["assets"]:
+                name = Path(asset["path"]).name
+                children.append({"type": "image", "image": {
+                    "type": "external", "external": {"url": f"{self.base_url}/{name}"}}})
         if caption:
             children.append({"type": "paragraph", "paragraph": {"rich_text": caption}})
-        stem = Path(entry["assets"][0]["path"]).stem
-        children.append({"type": "paragraph", "paragraph": {"rich_text": [
-            {"type": "text", "text": {"content": "Open interactive figure ↗",
-                                      "link": {"url": f"{self.base_url}/{stem}.html"}}}]}})
+        if export:
+            # Kept alongside the embed deliberately: an embed cannot be opened full
+            # screen, does not survive Notion's own PDF export, and silently shows
+            # nothing if the host ever refuses to be framed.
+            children.append({"type": "paragraph", "paragraph": {"rich_text": [
+                {"type": "text", "text": {
+                    "content": "Open interactive figure ↗",
+                    "link": {"url": f"{self.base_url}/{Path(export).name}"}}}]}})
         card = _callout("📊", "default", title)
         card["_deferred"] = children
         return card
