@@ -53,7 +53,7 @@ want the method behind it, go back here. Four flavours:
   both apply: a signpost may not borrow any tier's authority.
 - **Verify every target.** Sections against the corpus headings, labels against
   `build/labels.json`. Do not invent labels from memory of the captions.
-- **Sparingly.** A handful per chapter, only where a reader genuinely branches.
+- **Sparingly.** A handful per top-level section, only where a reader genuinely branches.
   Not every section needs one; a page of callouts is worse than none.
 - **Figures that are pending stay out.** Check `build/figures.json` — never point
   at a figure whose assets are `pending` or `missing`.

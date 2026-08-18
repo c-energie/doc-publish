@@ -2,7 +2,7 @@
 
 Rule for a *new* section: own page if it has subsections or its own body exceeds
 PAGE_WORD_THRESHOLD words; otherwise it is inlined into the nearest paged ancestor
-under a heading. Chapters are always pages.
+under a heading. Top-level sections are always pages.
 
 The first decision per section is pinned in the manifest and later runs never
 restructure automatically - a promotion moves content to a new page ID, which breaks

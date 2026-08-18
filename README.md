@@ -127,7 +127,7 @@ silently skipping it would publish raw `\ptg{...}` into the corpus.
 ## When to add retrieval
 
 Not yet. This is long-context plus prompt caching, not RAG: the whole document sits in a
-cached system block, which is what cross-chapter questions need. Revisit if the corpus
+cached system block, which is what cross-section questions need. Revisit if the corpus
 passes ~170k tokens (the build prints its size) or if per-query cost starts to matter.
 Then use **hybrid** BM25 + embeddings, never embeddings alone — the lexical tokens in a
 technical document are exactly what semantic similarity smears together.

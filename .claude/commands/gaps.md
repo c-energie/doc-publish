@@ -1,6 +1,6 @@
 ---
 description: List every unresolved item in the document draft, by section
-argument-hint: [optional: section number or chapter name to filter]
+argument-hint: [optional: section number or section name to filter]
 ---
 
 Read `build/annotations.json` - every LaTeX source comment with the section it sits in.

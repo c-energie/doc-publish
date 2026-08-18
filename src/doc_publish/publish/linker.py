@@ -61,7 +61,7 @@ def footer_text() -> str:
 
 MAX_FIGURE_COLUMNS = 3
 # Thesis level at which inlined section headings become collapsed toggles.
-# 2 = every inlined section (chapter pages open as outlines of §N.x toggles) -
+# 2 = every inlined section (top-level pages open as outlines of §N.x toggles) -
 # widened from 4 (subsubsections only): past this depth a section reads better
 # inlined under its parent than as a page of its own.
 TOGGLE_LEVEL = 2

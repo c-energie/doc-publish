@@ -109,13 +109,13 @@ def main(argv: list[str] | None = None) -> int:
     for key in plan.page_order:
         (SITE / page_file(key)).write_text(writer.render_page(key), encoding="utf-8")
 
-    chapters = [k for k in plan.page_order if plan.parent_of.get(k, "root") == "root"]
+    top_level = [k for k in plan.page_order if plan.parent_of.get(k, "root") == "root"]
     index = ["---", 'title: "Thesis"', "---", "",
              f"Rendered from the LaTeX source of `{source}` by `doc-publish site`. "
              f"The LaTeX is the source of truth.", "",
-             "## Chapters", ""]
+             "## Sections", ""]
     index += [f"- [{plan.nodes[k].section.display}]({page_file(k).replace('.qmd', '.html')})"
-              for k in chapters]
+              for k in top_level]
     if entries:
         references.write_page(entries, SITE)
         index += ["", "[References](references.html)"]

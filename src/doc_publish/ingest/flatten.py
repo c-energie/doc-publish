@@ -2,7 +2,7 @@
 
 Verified against a working thesis; all of it is ordinary subfiles/glossaries/biblatex
 usage rather than anything peculiar to that document:
-  main.tex           subfiles: Preamble, Introduction, background_chapter, Use-cases,
+  main.tex           subfiles: Preamble, Introduction, background_section, Use-cases,
                      Method, Results, Discussion, Conclusion
   custom_settings.sty  \\graphicspath (7 dirs), \\newcommand literals, biblatex resources
   glossary_terms.tex   \\newacronym (abbreviations) + \\newglossaryentry type=symbols
@@ -14,7 +14,7 @@ Pipeline order matters and is not negotiable:
                                      author withheld, and must not be pulled in)
   4. expand macros                   (acronyms, symbols, citations, refs, and the
                                      document's own via ingest/adapter.py)
-  5. number sections                 (chapter numbers come from main.tex's subfile order)
+  5. number sections                 (top-level numbers come from main.tex's subfile order)
 
 Two corpora come out of this: `public` (comments dropped) and `draft` (comments kept as
 annotations). See build.py - the difference is not cosmetic.
@@ -344,7 +344,7 @@ def flatten(repo: Path, mode: str = "public") -> Corpus:
     raw = FIGURE_RE.sub(lambda m: _float_stub(m.group(1), "FIGURE"), raw)
     raw = TABLE_RE.sub(lambda m: _float_stub(m.group(1), "TABLE"), raw)
 
-    # stage 5 - chapter numbers follow main.tex's subfile order
+    # stage 5 - top-level numbers follow main.tex's subfile order
     counters = [0, 0, 0, 0]
     out: list[str] = []
     here = "front matter"

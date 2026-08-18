@@ -60,7 +60,7 @@ SCHEMA = [
     {
         "name": "query_results",
         "description": (
-            "Query the per-record estimates behind the results chapters. Returns summary "
+            "Query the per-record estimates behind the results sections. Returns summary "
             "statistics, never more than 50 rows. Columns: " + ", ".join(results().columns)
             if not results().empty else "Results table (not yet loaded)."
         ),

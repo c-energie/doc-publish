@@ -3,7 +3,7 @@
 A signpost is a short navigational note - "to skip ahead to the results this method
 produces, see §5.1", "the figure showing these assumptions is Fig X" - rendered as a
 compact 🧭 callout at the start or end of the section it is anchored to (including
-sections that live inside toggles). Redesigned 2026-08-04 from per-chapter intros to
+sections that live inside toggles). Redesigned 2026-08-04 from per-top-level intros to
 per-section pointers.
 
 File format (signposts.md in the state dir, committed):
@@ -90,7 +90,7 @@ def approved(path: Path, current_titles: dict[str, str],
 
 def ensure_scaffold(path: Path) -> bool:
     """Create the file with instructions if it does not exist (or holds the retired
-    chapter-intro format). Returns True if (re)written."""
+    top-level-intro format). Returns True if (re)written."""
     if path.exists() and ("start|end" in path.read_text(encoding="utf-8")
                           or ENTRY_RE.search(path.read_text(encoding="utf-8"))):
         return False

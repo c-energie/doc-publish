@@ -97,7 +97,7 @@ def write_shims(site_dir: Path, extra_macros: dict[str, str]) -> None:
 
 
 def sidebar_yaml(plan, references: bool) -> list[str]:
-    """Sidebar mirroring the page plan: chapters with nested section pages."""
+    """Sidebar mirroring the page plan: top-level sections with nested section pages."""
     children: dict[str, list[str]] = {}
     for key in plan.page_order:
         children.setdefault(plan.parent_of.get(key, "root"), []).append(key)

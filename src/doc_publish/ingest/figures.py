@@ -4,7 +4,7 @@
 filenames are unique thesis-wide by convention - so a filename resolving to two files means
 the convention has been broken, and that is reported rather than silently resolved.
 
-Commented-out figure blocks are captured too, with status "pending": the results chapter
+Commented-out figure blocks are captured too, with status "pending": the results section
 carries several figures whose assets are awaiting a notebook re-run, and an agent that
 claims those figures exist is worse than one that says they are pending.
 """
@@ -22,6 +22,12 @@ GRAPHICSPATH_RE = re.compile(r"\\graphicspath\{(.*?)\n\}", re.S)
 INCLUDEGFX_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
 FIGURE_RE = re.compile(r"\\begin\{figure\}(.*?)\\end\{figure\}", re.S)
 EXTS = (".png", ".pdf", ".jpg", ".jpeg", ".eps")
+
+#: Where a document keeps its sections. "Chapters" is the pre-rename spelling and is
+#: still searched, so this engine reads an older document repo unchanged. Both are
+#: swept because this is a last-resort fallback: a hit under either is still a hit, and
+#: an ambiguous filename is reported rather than silently resolved (see `resolve`).
+SECTION_ROOTS = ("Sections", "Chapters")
 
 
 def graphics_roots(repo: Path) -> list[Path]:
@@ -42,9 +48,10 @@ def resolve(name: str, roots: list[Path], repo: Path) -> list[Path]:
         if root.exists():
             for ext in EXTS:
                 hits.update(root.glob(f"{stem}{ext}"))
-    if not hits:  # last resort: anywhere under Chapters/
-        for ext in EXTS:
-            hits.update((repo / "Chapters").rglob(f"{stem}{ext}"))
+    if not hits:  # last resort: anywhere under the section tree
+        for root in SECTION_ROOTS:
+            for ext in EXTS:
+                hits.update((repo / root).rglob(f"{stem}{ext}"))
     return sorted(hits)
 
 

@@ -5,7 +5,7 @@ is **generic and public**. Everything specific to a particular document — its 
 answering rules, its publishing state — lives in that document's repo under
 `.doc-publish/`, located by `DOC_REPO`.
 
-Nothing document-specific belongs in this repo. If you find yourself writing a chapter
+Nothing document-specific belongs in this repo. If you find yourself writing a section
 number, a dataset name or a result into a file here, it goes in the state directory
 instead.
 
@@ -85,7 +85,7 @@ contested, how to pitch the language. Those rules are not in this repo and canno
 inferred from the corpus.
 
 The corpus is ~70k tokens. It fits in context, but a single `Read` truncates it and leaves
-you answering from the vocabulary block and Chapter 1 while believing you have the whole
+you answering from the vocabulary block and §1 while believing you have the whole
 thing. Read it in successive `offset`/`limit` passes at the start of any session with more
 than one question. For a single lookup, `grep -n "<term>" build/corpus_draft.md` then read
 that range plus ~80 lines either side.

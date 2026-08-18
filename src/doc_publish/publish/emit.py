@@ -1,7 +1,7 @@
 """Corpus markdown -> Notion block fragments.
 
 Parses the format ingest/flatten.py emits (verified against build/corpus_public.md):
-  `## §N.N Title`      headings, 1-4 #'s, chapter number from main.tex subfile order
+  `## §N.N Title`      headings, 1-4 #'s, top-level number from main.tex subfile order
   `[FIGURE <label>] c` figure stub, caption on the same line; labels contain spaces/colons
   `[TABLE <label>] c`  table stub, followed immediately by `| pipe | rows |` - a row's
                        cells can contain newlines (LaTeX source line breaks), so a line
@@ -92,7 +92,7 @@ class Fragment:
 @dataclass
 class Section:
     number: str               # "2.2.6" (no §); "vocabulary" for the front block
-    level: int                # 1 = chapter
+    level: int                # 1 = top-level section
     title: str
     fragments: list = field(default_factory=list)
     children: list = field(default_factory=list)

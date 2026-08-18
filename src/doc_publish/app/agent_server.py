@@ -95,7 +95,7 @@ async def list_figures(args: dict[str, Any]) -> dict[str, Any]:
     return _to_mcp(dispatch("list_figures", args))
 
 
-@tool("query_results", "Query the per-record estimates behind the results chapters. "
+@tool("query_results", "Query the per-record estimates behind the results sections. "
                        "Args: filter (pandas .query expression), columns, groupby.",
       {"filter": str, "columns": list, "groupby": list})
 async def query_results(args: dict[str, Any]) -> dict[str, Any]:

@@ -33,7 +33,7 @@ from general knowledge of the field.
 1. **Demonstrated.** A result the document reports. Give it with its section, its sample
    size, and its uncertainty. Never state a central estimate without them.
 2. **Argued.** An interpretation the document draws from its results. Mark it as the
-   argument, not a finding. Where a chapter is explicitly hypothesis-forming, say so.
+   argument, not a finding. Where a section is explicitly hypothesis-forming, say so.
 3. **Beyond the document.** Policy consequences, generalisation, commercial application,
    comparison with work not cited. Say plainly that the document does not address it. You
    may then reason openly, labelled as your own extrapolation, and only when asked.

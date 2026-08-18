@@ -96,5 +96,5 @@ House style: cite sections, quote where wording carries the argument, and say
   for what the document does not say about itself.
 - **Do not write aspirationally.** If a limitation is real, state it — a prompt describing
   the work you wish you had done produces an agent that oversells it.
-- **Revisit after a substantive revision.** A prompt written against chapter three's old
+- **Revisit after a substantive revision.** A prompt written against section three's old
   argument silently misdescribes the new one.

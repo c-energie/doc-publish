@@ -18,7 +18,7 @@ State lives in the *document* repo, under `.doc-publish/` (see config.state_dir)
     notion_manifest.json   label -> page_id / pinned_placement / hash
     katex_report.md        equations rewritten or unlikely to render
     sync_report.md         what the last run did and what needs a human
-    signposts.md           chapter intros for review (see signposts.py)
+    signposts.md           top-level section intros for review (see signposts.py)
 Sandbox runs keep their own manifest (notion_manifest.sandbox.json) so a scratch
 publish can never orphan the real wiki's manifest.
 
@@ -43,14 +43,15 @@ from .linker import Linker, page_url
 from .notion import Notion, NotionError
 from .structure import build_plan, page_title
 
-# themed chapter icons (agreed 2026-08-04); section pages inherit their chapter's
-CHAPTER_ICONS = {"§1": "🎯", "§2": "📚", "§3": "🧩", "§4": "📐", "§5": "📊",
-                 "§6": "💬", "§7": "🏁", "§8": "🎓", "vocabulary": "📖"}
+# themed top-level icons (agreed 2026-08-04); nested pages inherit their top-level
+# section's icon
+TOP_LEVEL_ICONS = {"§1": "🎯", "§2": "📚", "§3": "🧩", "§4": "📐", "§5": "📊",
+                   "§6": "💬", "§7": "🏁", "§8": "🎓", "vocabulary": "📖"}
 
 
 def icon_for(key: str) -> str:
-    chapter = "§" + key[1:].split(".")[0] if key.startswith("§") else key
-    return CHAPTER_ICONS.get(chapter, "📄")
+    top_level = "§" + key[1:].split(".")[0] if key.startswith("§") else key
+    return TOP_LEVEL_ICONS.get(top_level, "📄")
 
 
 def cited_in_map(root) -> dict[str, list[str]]:
