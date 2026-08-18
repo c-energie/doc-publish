@@ -200,3 +200,19 @@ def test_generated_state_is_gitignored_by_the_skeleton(document):
         encoding="utf-8")
     for name in contract.STATE_FILES:
         assert name in ignored
+
+
+def test_init_writes_a_tool_neutral_agents_file(document):
+    """.claude/skills only helps one assistant; AGENTS.md is what the others read."""
+    init(document)
+    agents = document / "AGENTS.md"
+    assert agents.exists()
+    assert "doc-publish doctor" in agents.read_text(encoding="utf-8")
+
+
+def test_init_never_clobbers_an_existing_agents_file(document, capsys):
+    """A document may already have one, carrying rules nothing here knows about."""
+    (document / "AGENTS.md").write_text("my own rules\n", encoding="utf-8")
+    init(document)
+    assert (document / "AGENTS.md").read_text(encoding="utf-8") == "my own rules\n"
+    assert "kept" in capsys.readouterr().out

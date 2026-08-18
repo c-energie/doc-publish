@@ -42,6 +42,11 @@ MACRO_DEF = re.compile(
 
 SKILLS = ("write-agent-prompt", "write-macro-adapter")
 
+#: Written at the document repo *root*, not in the state dir, because that is where every
+#: agent looks for it. Tool-neutral on purpose: .claude/skills only helps one assistant,
+#: and a document is as likely to be worked on in Cursor or Copilot.
+AGENTS_FILE = "AGENTS.md"
+
 
 def _document_repo(args) -> Path:
     return Path(args.document_repo).expanduser() if args.document_repo else config.document_repo()
@@ -91,6 +96,13 @@ def init(argv: list[str] | None = None) -> int:
         shutil.copyfile(TEMPLATES / "gitignore", gitignore)
         written.append(gitignore)
 
+    agents = repo / AGENTS_FILE
+    if agents.exists() and not args.force:
+        skipped.append(agents)
+    else:
+        shutil.copyfile(TEMPLATES / AGENTS_FILE, agents)
+        written.append(agents)
+
     if not args.no_skills:
         skills_root = repo / ".claude" / "skills"
         for skill in SKILLS:
@@ -109,9 +121,14 @@ def init(argv: list[str] | None = None) -> int:
 
     print(f"\n{len(written)} written, {len(skipped)} kept, in {repo}")
     if written:
-        print("\nNext: write .doc-publish/prompt.md. It is the only file here that\n"
-              "cannot be generated, and the one that decides whether the agent\n"
-              "represents the document honestly. Then run `doc-publish check`.")
+        print("\nNext:\n"
+              "  1. `doc-publish doctor` - what is set up and what is not.\n"
+              "  2. Write .doc-publish/prompt.md. It is the only file here that cannot\n"
+              "     be generated, and the one that decides whether an agent represents\n"
+              "     the document honestly. See .claude/skills/write-agent-prompt/.\n"
+              "  3. `doc-publish check` - gates publishing on step 2.\n"
+              "\nAGENTS.md at the repo root tells any coding agent - Cursor, Copilot,\n"
+              "Codex, Claude - how to work in this document. Edit it freely.")
     return 0
 
 
@@ -159,7 +176,7 @@ def check(argv: list[str] | None = None) -> int:
     print(f"Contract for {repo}\n")
 
     if not state.is_dir():
-        print(f"  MISSING  {config.STATE_DIRNAME}/ — run `doc-publish init`")
+        print(f"  MISSING  {config.STATE_DIRNAME}/ - run `doc-publish init`")
         return 1
 
     problems = 0
@@ -167,13 +184,13 @@ def check(argv: list[str] | None = None) -> int:
     for name in CONTRACT_FILES:
         path = state / name
         if not path.exists():
-            print(f"  MISSING  {name} — run `doc-publish init`")
+            print(f"  MISSING  {name} - run `doc-publish init`")
             problems += 1
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         todos = text.count(TODO)
         if todos:
-            print(f"  UNFINISHED  {name} — {todos} [TODO:] marker(s) left")
+            print(f"  UNFINISHED  {name} - {todos} [TODO:] marker(s) left")
             problems += 1
         else:
             print(f"  ok       {name}")

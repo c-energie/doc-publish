@@ -93,6 +93,7 @@ def _contract(attr: str):
 COMMANDS = {
     "env": _lazy("doc_publish.envfile"),
     "config": _config,
+    "doctor": _lazy("doc_publish.doctor"),
     "init": _contract("init"),
     "check": _contract("check"),
     "build": _lazy("doc_publish.ingest.build"),

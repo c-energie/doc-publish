@@ -110,12 +110,12 @@ def _audit(env_path: Path, active: list[str], optional: list[str]) -> int:
         elif source == key:
             print(f"  ok       {key}")
         else:
-            print(f"  ok       {key}  (as {source} — the pre-rename name; still read, "
+            print(f"  ok       {key}  (as {source} - the pre-rename name; still read, "
                   f"but rename it when convenient)")
 
     absent_optional = [key for key in optional if provided_by(key) is None]
     if absent_optional:
-        print(f"\n  {len(absent_optional)} optional setting(s) not set — defaulted or "
+        print(f"\n  {len(absent_optional)} optional setting(s) not set - defaulted or "
               f"feature-gating:\n      {', '.join(absent_optional)}")
 
     known = set(active) | set(optional)
@@ -160,11 +160,11 @@ def main(argv: list[str] | None = None) -> int:
     active, optional = template_keys()
 
     if env_path.exists():
-        print(f"{env_path} exists — not overwritten (it may hold tokens).\n")
+        print(f"{env_path} exists - not overwritten (it may hold tokens).\n")
         return _audit(env_path, active, optional)
 
     if args.check:
-        print(f"no {ENV_FILENAME} in {directory} — run `doc-publish env` to write one")
+        print(f"no {ENV_FILENAME} in {directory} - run `doc-publish env` to write one")
         return 1
 
     shadowed = _shadowed(directory)
@@ -176,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
         # settings, which name nothing and so change nothing. Worth saying out loud.
         print(f"\nnote: {shadowed} already serves this tree. The new file takes "
               f"precedence\n      for every setting it sets.")
-    print(f"\nNext: fill in DOC_REPO — the path to the LaTeX document repo — then run\n"
+    print(f"\nNext: fill in DOC_REPO - the path to the LaTeX document repo - then run\n"
           f"`doc-publish config` to see how every setting resolved and from where.\n"
           f"Never commit this file: it names private paths and may carry tokens.")
     return 0

@@ -15,10 +15,16 @@ import re
 import shutil
 from pathlib import Path
 
+from .. import config
 from .flatten import LABEL_RE, _brace, inline, settings_files
 
 SETTINGS = "custom_settings.sty"
-GRAPHICSPATH_RE = re.compile(r"\\graphicspath\{(.*?)\n\}", re.S)
+#: Only the command; its argument is brace-matched by graphics_roots, because
+#: `\graphicspath{{a/}{b/}}` on one line and the multi-line `%`-continued form are both
+#: ordinary. This used to require a newline before the closing brace, so a single-line
+#: declaration — the more common spelling — was read as no declaration at all, and every
+#: bare-filename figure silently resolved against the repo root instead.
+GRAPHICSPATH_RE = re.compile(r"\\graphicspath\s*\{")
 INCLUDEGFX_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
 FIGURE_RE = re.compile(r"\\begin\{figure\}(.*?)\\end\{figure\}", re.S)
 EXTS = (".png", ".pdf", ".jpg", ".jpeg", ".eps")
@@ -32,12 +38,16 @@ SECTION_ROOTS = ("Sections", "Chapters")
 
 def graphics_roots(repo: Path) -> list[Path]:
     # \graphicspath may live in any of the document's own .sty files, not only one
-    # with an assumed name; the first that declares it wins.
-    for path in settings_files(repo):
+    # with an assumed name; the first that declares it wins. It may also live in the
+    # root .tex, which is where a document with no .sty at all puts it.
+    for path in [*settings_files(repo), repo / config.main_tex(repo)]:
+        if not path.exists():
+            continue
         raw = path.read_text(encoding="utf-8", errors="replace")
         m = GRAPHICSPATH_RE.search(raw)
         if m:
-            return [repo / p for p in re.findall(r"\{([^{}]+)\}", m.group(1))]
+            arg, _ = _brace(raw, m.end() - 1)
+            return [repo / p for p in re.findall(r"\{([^{}]+)\}", arg)]
     return [repo]
 
 
@@ -72,7 +82,7 @@ def _blocks(raw: str) -> list[tuple[str, bool]]:
 
 def build_manifest(repo: Path, out_dir: Path, section_of: dict[str, str]) -> list[dict]:
     roots = graphics_roots(repo)
-    raw = inline(repo, "main.tex")
+    raw = inline(repo, config.main_tex(repo))
     (out_dir / "figures").mkdir(parents=True, exist_ok=True)
     manifest: list[dict] = []
 

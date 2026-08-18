@@ -34,6 +34,7 @@ pre-rename `THESIS_*` name that still works but should be migrated.
 ## Use
 
 ```bash
+doc-publish doctor             # what is set up and what is not; reads only
 doc-publish build              # LaTeX -> corpora, labels, figure manifest
 doc-publish site               # -> the rendered site (needs Quarto)
 doc-publish serve              # view it locally
@@ -43,6 +44,12 @@ doc-publish publish            # -> copy site + corpus into the publish repo
 
 `doc-publish build` exits non-zero on any unresolved macro, missing live figure asset,
 or ambiguous figure filename. Treat that as a build failure, not a warning.
+
+**Start with `doc-publish doctor`.** It walks every setup condition at once — the root
+`.tex` it found, where the glossary and bibliography resolved to, whether every
+`\graphicspath` directory exists, the contract, and the optional streams — and prints a
+specific fix for anything not ready. `--json` emits the same findings as structured data,
+so an assistant helping someone set this up can read the state instead of guessing.
 
 ## Two corpora — the decision that matters most
 
@@ -75,6 +82,11 @@ every page. Losing `anchor_map.json` breaks every inbound link into the site. Co
 in the document repo; they are small.
 
 ## Adapting it to your document
+
+Setting up the whole toolchain, or pointing this at a thesis that already exists? The
+end-to-end guide is
+[writing-template/SETUP.md](https://github.com/c-energie/writing-template/blob/main/SETUP.md).
+This section covers the engine's half of it.
 
 Start by scaffolding the contract into your document repo, which writes the files below
 and two Claude skills for authoring them:

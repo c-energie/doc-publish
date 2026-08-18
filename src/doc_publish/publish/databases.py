@@ -19,9 +19,11 @@ import json
 import re
 from pathlib import Path
 
+#: Which .bib files this document cites is resolved from its own addbibresource
+#: declarations rather than assumed; ingest.flatten owns that lookup so both the
+#: corpus and the Notion references database read exactly the same files.
+from ..ingest.flatten import bib_files
 from .emit import Fragment, clean_text
-
-BIB_PATHS = ["Bibliographies/bib.bib", "Bibliographies/references.bib"]
 
 TYPE_NAMES = {"article": "Article", "book": "Book", "incollection": "Chapter",
               "inproceedings": "Conference paper", "techreport": "Report",
@@ -62,10 +64,7 @@ def _detex(s: str) -> str:
 # --- bib parsing -------------------------------------------------------------
 def bib_entries(document_repo: Path) -> list[dict]:
     entries = []
-    for rel in BIB_PATHS:
-        p = document_repo / rel
-        if not p.exists():
-            continue
+    for p in bib_files(document_repo):
         src = p.read_text(encoding="utf-8", errors="replace")
         for m in re.finditer(r"@(\w+)\s*\{\s*([^,]+),(.*?)(?=\n@|\Z)", src, re.S):
             kind, key, body = m.group(1).lower(), m.group(2).strip(), m.group(3)

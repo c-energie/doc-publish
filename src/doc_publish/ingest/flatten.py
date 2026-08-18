@@ -26,14 +26,27 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .. import config
 from . import adapter
 
+#: Fallback root filename. config.main_tex() is what callers should use — it honours
+#: DOC_MAIN_TEX and the other conventional root names, so a document whose root is
+#: `thesis.tex` needs no rename to be ingested.
 ROOT = "main.tex"
 #: Historical default, kept as the name tried first so a document already using it keeps
 #: its previous behaviour exactly. settings_files() is what callers should use.
 SETTINGS = "custom_settings.sty"
+#: The conventional glossary filename. Nothing requires it: glossary_source() gathers
+#: declarations from every root .tex/.sty and from the inlined source, so a document may
+#: keep its acronyms in the preamble, in a subdirectory, or nowhere at all.
 GLOSSARY = "glossary_terms.tex"
+#: Conventional locations, tried only when the source declares none. The document
+#: itself names its bibliography via \addbibresource or \bibliography, so bib_files()
+#: reads that rather than assuming a layout — hardcoding these meant a document keeping
+#: its .bib anywhere else got every citation as [UNRESOLVED: cite ...] with nothing
+#: saying why.
 BIB_PATHS = ["Bibliographies/bib.bib", "Bibliographies/references.bib"]
+BIBRESOURCE_RE = re.compile(r"\\(?:addbibresource|bibliography)\s*(?:\[[^\]]*\])?\{([^}]+)\}")
 
 
 def settings_files(repo: Path) -> list[Path]:
@@ -49,6 +62,114 @@ def settings_files(repo: Path) -> list[Path]:
     preferred = Path(repo) / SETTINGS
     rest = sorted(p for p in Path(repo).glob("*.sty") if p != preferred)
     return ([preferred] if preferred.exists() else []) + rest
+
+
+def bib_files(repo: Path) -> list[Path]:
+    """Every .bib this document actually cites, from its own \\addbibresource declarations.
+
+    `\\addbibresource{refs/refs.bib}` and `\\bibliography{refs/refs}` are both read (the
+    latter omits the extension by convention), searched across the root .tex files and
+    the document's .sty files, since either may carry the declaration. Falls back to
+    BIB_PATHS, then to any .bib in the repo, so a document that declares nothing
+    parseable still gets its references rather than silently losing every citation.
+    """
+    repo = Path(repo)
+    declared: list[Path] = []
+    sources = sorted(repo.glob("*.tex")) + sorted(repo.glob("*.sty"))
+    for path in sources:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for m in BIBRESOURCE_RE.finditer(text):
+            for name in (n.strip() for n in m.group(1).split(",")):
+                if not name:
+                    continue
+                candidate = repo / (name if name.endswith(".bib") else f"{name}.bib")
+                if candidate.exists() and candidate not in declared:
+                    declared.append(candidate)
+    if declared:
+        return declared
+
+    conventional = [repo / rel for rel in BIB_PATHS if (repo / rel).exists()]
+    return conventional or sorted(repo.rglob("*.bib"))
+
+
+GLOSSARY_DECL = ("\\newacronym", "\\newglossaryentry")
+
+
+def glossary_source(repo: Path, inlined: str | None = None) -> str:
+    """Concatenated text of wherever this document declares its acronyms and symbols.
+
+    Every place a declaration can hide is gathered and concatenated — the conventional
+    `glossary_terms.tex`, any other root-level .tex, any .sty a `\\usepackage` pulls in,
+    and anything reached by `\\input` at any depth (that is what `inlined` carries, and it
+    is computed here when not supplied).
+
+    Gathering rather than picking the first match is deliberate. This checked
+    `glossary_terms.tex` first and returned its contents alone, so an *empty* file of that
+    name silently shadowed acronyms declared in a .sty — turning a working document into
+    one whose every `\\acrshort` came out as `[UNRESOLVED: acronym ...]`. A union has no
+    such precedence to get wrong.
+
+    Returns "" when there is no glossary anywhere, which is a legitimate document rather
+    than an error: this used to read the one filename unguarded, so a document without it
+    died on a bare FileNotFoundError before the build had reported anything at all.
+    """
+    repo = Path(repo)
+    found: list[str] = []
+
+    for path in sorted(repo.glob("*.tex")) + sorted(repo.glob("*.sty")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if any(decl in text for decl in GLOSSARY_DECL):
+            found.append(text)
+
+    # \input{frontmatter/acronyms.tex} is as common as a root-level file, and a glob of
+    # the root cannot see it. Two places to follow: the body, which inline() has already
+    # resolved to any depth, and the *preamble*, which inline() deliberately discards —
+    # and which is where a glossary include usually sits.
+    if inlined is None:
+        try:
+            inlined = inline(repo, config.main_tex(repo))
+        except (OSError, config.ConfigError):
+            inlined = ""
+    for text in (inlined, preamble_source(repo)):
+        if any(decl in text for decl in GLOSSARY_DECL):
+            found.append(text)
+
+    return "\n".join(found)
+
+
+def preamble_source(repo: Path) -> str:
+    """The root file's preamble, with its \\input/\\include resolved, to any depth.
+
+    inline() drops everything before `\\begin{document}` because none of it is prose. But
+    that is exactly where `\\input{frontmatter/acronyms.tex}` lives, so the vocabulary
+    scan needs its own view of it.
+    """
+    repo = Path(repo)
+    try:
+        root = repo / config.main_tex(repo)
+        raw = root.read_text(encoding="utf-8", errors="replace")
+    except (OSError, config.ConfigError):
+        return ""
+
+    preamble = raw.split("\\begin{document}", 1)[0]
+    parts = [preamble]
+    seen: set[str] = set()
+
+    def follow(text: str, base: Path) -> None:
+        for m in INCLUDE_RE.finditer(text):
+            path = resolve_include(repo, m.group(1), base)
+            if path is None:
+                continue
+            key = str(path.resolve())
+            if key in seen:
+                continue
+            seen.add(key)
+            sub = path.read_text(encoding="utf-8", errors="replace")
+            parts.append(sub)
+            follow(sub, path.parent)
+
+    follow(preamble, root.parent)
+    return "\n".join(parts)
 
 
 INCLUDE_RE = re.compile(r"\\(?:subfile|input|include)\{([^}]+)\}")
@@ -132,13 +253,13 @@ def _detex(s: str) -> str:
 
 
 # --- vocabulary -------------------------------------------------------------
-def load_vocab(repo: Path) -> Vocab:
+def load_vocab(repo: Path, inlined: str | None = None) -> Vocab:
     v = Vocab()
     # Raises if the document ships a broken macros.py. Better here than three stages
     # later with raw \macro{...} already written into the corpus.
     v.macros = adapter.load_for(repo)
     v.literals = literal_macros(repo)
-    raw = (repo / GLOSSARY).read_text(encoding="utf-8", errors="replace")
+    raw = glossary_source(repo, inlined)
 
     for m in re.finditer(r"\\newacronym\{([^}]+)\}\{(.+?)\}\{(.+?)\}\s*$", raw, re.M):
         v.acronyms[m.group(1)] = (m.group(2), m.group(3))
@@ -160,10 +281,7 @@ def load_vocab(repo: Path) -> Vocab:
             _detex(unit.group(1)) if unit else "",
         )
 
-    for rel in BIB_PATHS:
-        p = repo / rel
-        if not p.exists():
-            continue
+    for p in bib_files(repo):
         src = p.read_text(encoding="utf-8", errors="replace")
         for m in re.finditer(r"@\w+\s*\{\s*([^,]+),(.*?)(?=\n@|\Z)", src, re.S):
             body = m.group(2)
@@ -189,12 +307,21 @@ def load_vocab(repo: Path) -> Vocab:
 
 
 # --- stage 1: inline subfiles (relative to the including file's directory) ---
+def resolve_include(repo: Path, rel: str, base: Path) -> Path | None:
+    """The file an \\input/\\include/\\subfile argument names, or None.
+
+    Paths are relative to the *including* file's directory, with the repo root as a
+    fallback, and the .tex extension is conventionally omitted.
+    """
+    cand = [base / rel, repo / rel]
+    return next((p if p.suffix else p.with_suffix(".tex")
+                 for p in cand if (p if p.suffix else p.with_suffix(".tex")).exists()), None)
+
+
 def inline(repo: Path, rel: str, base: Path | None = None, seen: set[str] | None = None) -> str:
     seen = seen if seen is not None else set()
     base = base or repo
-    cand = [base / rel, repo / rel]
-    path = next((p if p.suffix else p.with_suffix(".tex")
-                 for p in cand if (p if p.suffix else p.with_suffix(".tex")).exists()), None)
+    path = resolve_include(repo, rel, base)
     if path is None:
         return f"\n[UNRESOLVED: subfile {rel} (from {base.relative_to(repo)})]\n"
     key = str(path.resolve())
@@ -301,10 +428,14 @@ def expand(s: str, v: Vocab, unresolved: list[str]) -> str:
 # --- stages 2+5: comments, floats, section numbering ------------------------
 def flatten(repo: Path, mode: str = "public") -> Corpus:
     assert mode in ("public", "draft")
-    v = load_vocab(repo)
-    c = Corpus(text="", vocab=v)
 
-    raw = inline(repo, ROOT)
+    # Inlining first: the vocabulary scan needs it too (a glossary is as often
+    # \input from a subdirectory as it is a file at the root), and doing it once
+    # here keeps stage 1 of the documented pipeline order in one place.
+    raw = inline(repo, config.main_tex(repo))
+
+    v = load_vocab(repo, raw)
+    c = Corpus(text="", vocab=v)
 
     # stage 2 - comments carry provenance, TODOs and open supervisor questions.
     # A multi-line comment is one thought, not N. Consecutive comment lines are grouped so

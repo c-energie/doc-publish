@@ -19,9 +19,9 @@ from . import adapter
 from .figures import build_manifest
 from .flatten import flatten, vocabulary_block
 
-HEADER = """# Thesis corpus - {mode}
+HEADER = """# {title} corpus - {mode}
 
-Flattened from the LaTeX source of `{source}`. Section numbers match the thesis and
+Flattened from the LaTeX source of `{source}`. Section numbers match the document and
 are cited as SN.N. `[FIGURE label]` / `[TABLE label]` mark where floats sit; figures are
 retrievable by label with the get_figure tool. Cross-references appear as `Figure [label]`.
 {note}
@@ -57,7 +57,7 @@ def main() -> int:
 
     for mode, c, note in (("public", public, ""), ("draft", draft, NOTE_DRAFT)):
         (OUT / f"corpus_{mode}.md").write_text(
-            HEADER.format(mode=mode, note=note, source=source) + vocab + "\n---\n\n" + c.text,
+            HEADER.format(mode=mode, note=note, source=source, title=config.title()) + vocab + "\n---\n\n" + c.text,
             encoding="utf-8"
         )
 

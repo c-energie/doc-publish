@@ -215,7 +215,7 @@ def parse_corpus(text: str, *, math: str = "katex") -> tuple[Section, list[Fragm
     lines = text.splitlines()
     start = next((i for i, l in enumerate(lines) if l.startswith("## Vocabulary")), 0)
 
-    root = Section(number="root", level=0, title="Thesis")
+    root = Section(number="root", level=0, title="Document")
     stack = [root]
     leaks: list[Fragment] = []
     vocab = Section(number="vocabulary", level=1, title="Vocabulary")

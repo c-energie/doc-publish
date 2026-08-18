@@ -110,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         (SITE / page_file(key)).write_text(writer.render_page(key), encoding="utf-8")
 
     top_level = [k for k in plan.page_order if plan.parent_of.get(k, "root") == "root"]
-    index = ["---", 'title: "Thesis"', "---", "",
+    index = ["---", f'title: "{config.title()}"', "---", "",
              f"Rendered from the LaTeX source of `{source}` by `doc-publish site`. "
              f"The LaTeX is the source of truth.", "",
              "## Sections", ""]

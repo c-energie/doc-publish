@@ -18,15 +18,19 @@ and failed much later, deep in the flattener, with a bare filename in the messag
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
-__all__ = ["ConfigError", "load_env", "getenv", "document_repo", "state_dir",
+__all__ = ["ConfigError", "load_env", "getenv", "document_repo", "main_tex", "state_dir",
            "state_dir_for", "build_dir", "site_dir", "site_build_dir", "dist_dir",
-           "vendor_dir", "publish_repo", "corpus_mode", "source_label", "require",
+           "vendor_dir", "publish_repo", "corpus_mode", "source_label", "title", "require",
            "describe"]
 
 #: Filenames that identify a LaTeX document root, used to sanity-check DOC_REPO.
-_DOC_ROOTS = ("main.tex",)
+#: An existing document is as likely to be `thesis.tex` or `dissertation.tex` as
+#: `main.tex`, and renaming someone's root file to adopt this tooling is a poor trade —
+#: so DOC_MAIN_TEX names it, and these are only the fallbacks tried in order.
+_DOC_ROOTS = ("main.tex", "thesis.tex", "dissertation.tex", "report.tex", "book.tex")
 
 #: Directory name for publishing state, relative to the document repo.
 STATE_DIRNAME = ".doc-publish"
@@ -132,11 +136,31 @@ def require(name: str, what: str) -> str:
 def document_repo() -> Path:
     """The LaTeX document repo. An input, never written to by ingest."""
     path = Path(require("DOC_REPO", "the path to the LaTeX document repo")).expanduser()
-    if not any((path / root).exists() for root in _DOC_ROOTS):
+    named = getenv("DOC_MAIN_TEX")
+    if named:
+        if not (path / named).exists():
+            raise ConfigError(
+                f"DOC_MAIN_TEX={named} does not exist in DOC_REPO={path}")
+    elif not any((path / root).exists() for root in _DOC_ROOTS):
         raise ConfigError(
-            f"DOC_REPO={path} does not look like a LaTeX document repo "
-            f"(no {' or '.join(_DOC_ROOTS)})")
+            f"DOC_REPO={path} does not look like a LaTeX document repo - none of "
+            f"{', '.join(_DOC_ROOTS)} is there. If your root file has another name, "
+            f"set DOC_MAIN_TEX to it.")
     return path
+
+
+def main_tex(repo: Path | None = None) -> str:
+    """Filename of the document's root .tex, relative to the document repo.
+
+    DOC_MAIN_TEX wins; otherwise the first of _DOC_ROOTS that exists. Returns the first
+    fallback name when none is present, so callers still produce a sensible error
+    naming the file they looked for rather than an empty one.
+    """
+    named = getenv("DOC_MAIN_TEX")
+    if named:
+        return named
+    root = Path(repo) if repo is not None else document_repo()
+    return next((name for name in _DOC_ROOTS if (root / name).exists()), _DOC_ROOTS[0])
 
 
 def state_dir(create: bool = False) -> Path:
@@ -237,6 +261,26 @@ def source_label() -> str:
     """How the source document is named in generated prose ("Rendered from ...").
     Defaults to the document repo's directory name."""
     return os.environ.get("DOC_SOURCE_LABEL", "").strip() or document_repo().name
+
+
+def title() -> str:
+    """The document's own title, for the corpus header and the site index.
+
+    These used to read "Thesis" whatever the document was — harmless for a thesis and
+    wrong for anything else, in output a reader sees. DOC_TITLE sets it; otherwise the
+    root .tex's \\title{...} is used, falling back to the source label.
+    """
+    explicit = getenv("DOC_TITLE")
+    if explicit:
+        return explicit
+    repo = document_repo()
+    try:
+        raw = (repo / main_tex(repo)).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return source_label()
+    # Only a literal \title{...}; a title assembled from macros is not worth guessing at.
+    m = re.search(r"\\title\s*\{([^{}]+)\}", raw)
+    return m.group(1).strip() if m else source_label()
 
 
 def publish_repo() -> Path:
