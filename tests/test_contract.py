@@ -210,9 +210,31 @@ def test_init_writes_a_tool_neutral_agents_file(document):
     assert "doc-publish doctor" in agents.read_text(encoding="utf-8")
 
 
-def test_init_never_clobbers_an_existing_agents_file(document, capsys):
-    """A document may already have one, carrying rules nothing here knows about."""
-    (document / "AGENTS.md").write_text("my own rules\n", encoding="utf-8")
+def test_init_writes_a_claude_pointer_at_the_agents_file(document):
+    """Claude Code does not read AGENTS.md by name, so the guidance needs an import.
+
+    Without this the tool-neutral file is silently invisible to one of the assistants it
+    is addressed to - and nothing reports that, because there is no error in loading a
+    file nobody looked for.
+    """
     init(document)
-    assert (document / "AGENTS.md").read_text(encoding="utf-8") == "my own rules\n"
+    pointer = document / "CLAUDE.md"
+    assert pointer.exists()
+    assert "@AGENTS.md" in pointer.read_text(encoding="utf-8")
+
+
+def test_the_claude_pointer_carries_no_guidance_of_its_own(document):
+    """One copy of the rules. Two would disagree, with no way to tell which was right."""
+    init(document)
+    pointer = (document / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "doc-publish doctor" not in pointer
+    assert len(pointer.splitlines()) < 15
+
+
+@pytest.mark.parametrize("name", ["AGENTS.md", "CLAUDE.md"])
+def test_init_never_clobbers_an_existing_root_file(document, capsys, name):
+    """A document may already have one, carrying rules nothing here knows about."""
+    (document / name).write_text("my own rules\n", encoding="utf-8")
+    init(document)
+    assert (document / name).read_text(encoding="utf-8") == "my own rules\n"
     assert "kept" in capsys.readouterr().out

@@ -2,8 +2,12 @@
 
 Instructions for any coding agent working in this repository — Claude Code, Cursor,
 GitHub Copilot, Codex, Windsurf, Aider, Zed, Gemini, or a chat assistant a human is
-pasting files into. Tool-neutral by design; `.claude/` holds Claude-specific extras that
-mirror it.
+pasting files into. Tool-neutral by design, and the only place this guidance is written:
+
+- `CLAUDE.md` imports this file and holds nothing of its own. Claude Code does not read
+  `AGENTS.md` by name, so without it none of this reaches a Claude Code session.
+- `.claude/skills/` holds two authoring skills for the contract — the answering prompt
+  and the macro adapter — unless `init` was run with `--no-skills`.
 
 Scaffolded by `doc-publish init`. Edit it freely — it is yours now, and `init` will not
 overwrite it.

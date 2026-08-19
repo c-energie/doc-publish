@@ -43,9 +43,12 @@ MACRO_DEF = re.compile(
 SKILLS = ("write-agent-prompt", "write-macro-adapter")
 
 #: Written at the document repo *root*, not in the state dir, because that is where every
-#: agent looks for it. Tool-neutral on purpose: .claude/skills only helps one assistant,
-#: and a document is as likely to be worked on in Cursor or Copilot.
-AGENTS_FILE = "AGENTS.md"
+#: agent looks for them. AGENTS.md carries the guidance and is tool-neutral on purpose:
+#: .claude/skills only helps one assistant, and a document is as likely to be worked on in
+#: Cursor or Copilot. CLAUDE.md holds no guidance of its own — Claude Code does not read
+#: AGENTS.md by name, so without a file that imports it the guidance is simply never
+#: loaded there, and a second copy of it would drift from the first within a month.
+ROOT_FILES = ("AGENTS.md", "CLAUDE.md")
 
 
 def _document_repo(args) -> Path:
@@ -96,12 +99,13 @@ def init(argv: list[str] | None = None) -> int:
         shutil.copyfile(TEMPLATES / "gitignore", gitignore)
         written.append(gitignore)
 
-    agents = repo / AGENTS_FILE
-    if agents.exists() and not args.force:
-        skipped.append(agents)
-    else:
-        shutil.copyfile(TEMPLATES / AGENTS_FILE, agents)
-        written.append(agents)
+    for name in ROOT_FILES:
+        target = repo / name
+        if target.exists() and not args.force:
+            skipped.append(target)
+            continue
+        shutil.copyfile(TEMPLATES / name, target)
+        written.append(target)
 
     if not args.no_skills:
         skills_root = repo / ".claude" / "skills"
@@ -128,7 +132,8 @@ def init(argv: list[str] | None = None) -> int:
               "     the document honestly. See .claude/skills/write-agent-prompt/.\n"
               "  3. `doc-publish check` - gates publishing on step 2.\n"
               "\nAGENTS.md at the repo root tells any coding agent - Cursor, Copilot,\n"
-              "Codex, Claude - how to work in this document. Edit it freely.")
+              "Codex, Claude - how to work in this document. Edit it freely; CLAUDE.md\n"
+              "beside it only imports it, because Claude Code does not read AGENTS.md.")
     return 0
 
 
