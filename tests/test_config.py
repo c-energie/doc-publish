@@ -242,6 +242,7 @@ def test_a_nested_analysis_finds_the_document_holding_it(monkeypatch, tmp_path):
 
 
 def test_a_workspace_analysis_feeding_one_document_resolves_it(monkeypatch, tmp_path):
+    """Without this every workspace analysis needs a DOC_REPO written into its .env."""
     root = _workspace(tmp_path, [
         {"dir": "thesis", "kind": "document"},
         {"dir": "paper", "kind": "document"},
@@ -270,6 +271,7 @@ def test_a_workspace_analysis_feeding_two_documents_asks_which(monkeypatch, tmp_
 
 
 def test_a_workspace_analysis_feeding_nothing_says_so(monkeypatch, tmp_path):
+    """An empty `documents` must not fall through to a vague "DOC_REPO is not set"."""
     root = _workspace(tmp_path, [{"dir": "x", "kind": "analysis", "documents": []}])
     (root / "x").mkdir()
     monkeypatch.chdir(root / "x")
@@ -290,6 +292,7 @@ def test_doc_repo_names_the_document_an_analysis_feeds_nothing_else_describes(
 
 
 def test_the_workspace_root_resolves_its_one_document(monkeypatch, tmp_path):
+    """A code member is not a document, so one document member is unambiguous."""
     root = _workspace(tmp_path, [{"dir": "thesis", "kind": "document"},
                                  {"dir": "tools", "kind": "code"}])
     thesis = _doc(root / "thesis")
@@ -298,6 +301,7 @@ def test_the_workspace_root_resolves_its_one_document(monkeypatch, tmp_path):
 
 
 def test_the_workspace_root_with_several_documents_asks_which(monkeypatch, tmp_path):
+    """Picking one silently would build, then sync, the wrong document."""
     root = _workspace(tmp_path, [{"dir": "thesis", "kind": "document"},
                                  {"dir": "paper", "kind": "document"}])
     _doc(root / "thesis"), _doc(root / "paper")
@@ -370,6 +374,7 @@ def test_doc_repo_disagreeing_with_the_structure_fails_naming_both(monkeypatch, 
 
 
 def test_doc_repo_agreeing_with_the_structure_is_silent(monkeypatch, tmp_path, capsys):
+    """Existing DOC_REPO setups run from inside their document must not start nagging."""
     here = _doc(tmp_path / "here")
     (here / "sub").mkdir()
     monkeypatch.chdir(here / "sub")
@@ -381,6 +386,7 @@ def test_doc_repo_agreeing_with_the_structure_is_silent(monkeypatch, tmp_path, c
 
 
 def test_doc_repo_naming_one_of_several_documents_chooses_it(monkeypatch, tmp_path):
+    """DOC_REPO naming one of the candidates disambiguates; it is not a disagreement."""
     root = _workspace(tmp_path, [{"dir": "thesis", "kind": "document"},
                                  {"dir": "paper", "kind": "document"}])
     _doc(root / "thesis")
@@ -393,6 +399,7 @@ def test_doc_repo_naming_one_of_several_documents_chooses_it(monkeypatch, tmp_pa
 # ---------------------------------------------------------------------- --document
 
 def test_document_flag_overrides_doc_repo_and_the_structure(monkeypatch, tmp_path):
+    """The flag is the deliberate override, so it must not trip the agreement check."""
     here = _doc(tmp_path / "here")
     chosen = _doc(tmp_path / "chosen")
     monkeypatch.chdir(here)
@@ -403,6 +410,7 @@ def test_document_flag_overrides_doc_repo_and_the_structure(monkeypatch, tmp_pat
 
 
 def test_document_flag_still_needs_a_root_tex(tmp_path):
+    """An override that skipped the root-.tex check would fail later, deep in the flattener."""
     config.set_document(tmp_path)
     with pytest.raises(config.ConfigError) as excinfo:
         config.document_repo()
@@ -419,6 +427,7 @@ def test_the_cli_takes_document_for_any_command(monkeypatch, tmp_path, capsys):
 
 
 def test_config_says_which_step_found_the_document(monkeypatch, tmp_path):
+    """With three ways in, "why this document?" must be answerable from `config`."""
     doc = _doc(tmp_path / "doc")
     monkeypatch.chdir(doc)
     assert f"document: {doc} - found at or above {doc}" in config.describe()
@@ -452,6 +461,7 @@ def test_the_build_dir_is_refused_inside_a_document_that_does_not_ignore_it(
 
 @needs_git
 def test_the_build_dir_is_allowed_where_git_ignores_it(monkeypatch, tmp_path):
+    """The refusal must not block a document that already ignores build/."""
     doc = _doc(tmp_path / "doc")
     _git_init(doc)
     (doc / ".gitignore").write_text("build/\n", encoding="utf-8")
