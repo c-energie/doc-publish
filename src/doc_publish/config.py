@@ -17,11 +17,15 @@ and failed much later, deep in the flattener, with a bare filename in the messag
 """
 from __future__ import annotations
 
+import json
 import os
 import re
+import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
-__all__ = ["ConfigError", "load_env", "getenv", "document_repo", "main_tex", "state_dir",
+__all__ = ["ConfigError", "load_env", "getenv", "document_repo", "resolve_document",
+           "set_document", "Resolved", "main_tex", "state_dir",
            "state_dir_for", "build_dir", "site_dir", "site_build_dir", "dist_dir",
            "vendor_dir", "publish_repo", "corpus_mode", "source_label", "title", "require",
            "describe"]
@@ -38,6 +42,10 @@ STATE_DIRNAME = ".doc-publish"
 #: What the state directory was called before this tool was renamed from thesis-agent.
 #: Still read when it is the only one present; see state_dir().
 LEGACY_STATE_DIRNAME = ".thesis-agent"
+
+#: The project-workspace manifest, owned by claude-tools' project-workspace plugin. Read
+#: here, never written: which documents an analysis feeds is that plugin's to record.
+WORKSPACE_FILE = Path(".claude") / "workspace.json"
 
 
 class ConfigError(RuntimeError):
@@ -87,9 +95,16 @@ def load_env(start: Path | None = None) -> Path | None:
     for candidate in candidates:
         if candidate.is_file():
             for key, value in _parse_env_file(candidate).items():
-                os.environ.setdefault(key, value)
+                if key not in os.environ:
+                    os.environ[key] = value
+                    _from_env_file[key] = candidate
             return candidate
     return None
+
+
+#: Which settings load_env() filled in, and from which file - so `doc-publish config` can
+#: say that DOC_REPO came from a .env two directories up rather than from the shell.
+_from_env_file: dict[str, Path] = {}
 
 
 #: This was thesis-agent, and every setting was THESIS_*. A rename that silently stops
@@ -133,20 +148,202 @@ def require(name: str, what: str) -> str:
     return value
 
 
+@dataclass(frozen=True)
+class Resolved:
+    """The document, and which step of the resolution order found it: `route` is one of
+    "--document", "DOC_REPO", "walk-up" or "workspace"; `source` says it in a sentence."""
+    path: Path
+    source: str
+    route: str
+
+
+#: Set by the CLI's `--document <dir>`; outranks everything, DOC_REPO included.
+_explicit_document: Path | None = None
+
+
+def set_document(path: str | Path | None) -> None:
+    """Name the document explicitly, as `--document <dir>` does. None clears it."""
+    global _explicit_document
+    _explicit_document = Path(path).expanduser() if path is not None else None
+
+
 def document_repo() -> Path:
     """The LaTeX document repo. An input, never written to by ingest."""
-    path = Path(require("DOC_REPO", "the path to the LaTeX document repo")).expanduser()
+    return resolve_document().path
+
+
+def resolve_document() -> Resolved:
+    """Find the one document, in this order:
+
+      1. `--document <dir>`, then DOC_REPO (or THESIS_REPO);
+      2. the nearest document root at or above the current directory - running inside a
+         document, or inside an analysis nested in one;
+      3. `.claude/workspace.json`: the documents a workspace analysis feeds, or from the
+         workspace root its `kind: "document"` members.
+
+    Steps 2-3 still run when DOC_REPO is set, because DOC_REPO naming a *different*
+    document from the one the structure describes is a stale .env, and building the wrong
+    document - then syncing it over the right one's wiki - is not something to do quietly
+    (analysis-template ADR 0003). When they agree nothing is said. `--document` is the
+    deliberate override and is not checked against anything but its root .tex.
+    """
+    if _explicit_document is not None:
+        return Resolved(_checked(_explicit_document, "--document"), "--document",
+                        "--document")
+
+    found = _find_by_structure(Path.cwd().resolve())
+    named = getenv("DOC_REPO")
+    if named:
+        path = Path(named).expanduser()
+        if found and found.candidates and not any(_same(path, c) for c in found.candidates):
+            them = ", ".join(str(c) for c in found.candidates)
+            raise ConfigError(
+                f"DOC_REPO={path} is not the document {found.how} ({them}). One of them "
+                f"is stale: fix or unset DOC_REPO, or pass --document <dir> to choose.")
+        return Resolved(_checked(path, "DOC_REPO"), _doc_repo_source(), "DOC_REPO")
+
+    if found is None:
+        # Names both spellings, as require() always has, and every place that was looked.
+        raise ConfigError(
+            f"DOC_REPO (or its former name {_legacy_name('DOC_REPO')}) is not set, and no "
+            f"document was found at or above {Path.cwd()} nor through a "
+            f"{WORKSPACE_FILE.as_posix()}. Set DOC_REPO to the LaTeX document repo, run "
+            f"from inside the document, or pass --document <dir>.")
+    if not found.candidates:
+        raise ConfigError(f"{found.empty} Attach it to a document, set DOC_REPO, or pass "
+                          f"--document <dir>.")
+    if len(found.candidates) > 1:
+        listed = "".join(f"\n  {c}" for c in found.candidates)
+        raise ConfigError(f"There are {len(found.candidates)} documents {found.how}:"
+                          f"{listed}\nPass --document <dir> to choose one.")
+    path = found.candidates[0]
+    return Resolved(_checked(path, f"the document {found.how}"), found.how, found.route)
+
+
+def _doc_repo_source() -> str:
+    name = "DOC_REPO" if os.environ.get("DOC_REPO", "").strip() else _legacy_name("DOC_REPO")
+    origin = _from_env_file.get(name)
+    return f"{name} (from {origin})" if origin else f"{name} (from the environment)"
+
+
+def _same(a: Path, b: Path) -> bool:
+    # normcase: on Windows C:\Thesis and c:\thesis are one directory.
+    return os.path.normcase(str(a.resolve())) == os.path.normcase(str(b.resolve()))
+
+
+def _checked(path: Path, who: str) -> Path:
+    """`path`, if it holds the root .tex; otherwise a ConfigError saying who named it."""
     named = getenv("DOC_MAIN_TEX")
+    # `DOC_REPO=<path>` reads as the setting it is; a found document reads as a sentence.
+    at = f"{who}={path}" if who in ("DOC_REPO", "--document") else f"{who} ({path})"
     if named:
         if not (path / named).exists():
-            raise ConfigError(
-                f"DOC_MAIN_TEX={named} does not exist in DOC_REPO={path}")
+            raise ConfigError(f"DOC_MAIN_TEX={named} does not exist in {at}")
     elif not any((path / root).exists() for root in _DOC_ROOTS):
         raise ConfigError(
-            f"DOC_REPO={path} does not look like a LaTeX document repo - none of "
+            f"{at} does not look like a LaTeX document repo - none of "
             f"{', '.join(_DOC_ROOTS)} is there. If your root file has another name, "
             f"set DOC_MAIN_TEX to it.")
     return path
+
+
+def _is_document_root(d: Path) -> bool:
+    named = getenv("DOC_MAIN_TEX")
+    if named:
+        return (d / named).is_file()
+    return any((d / root).is_file() for root in _DOC_ROOTS)
+
+
+@dataclass(frozen=True)
+class _Found:
+    """What the project structure says the document is. `candidates` may hold several
+    (ambiguous) or none (an analysis that feeds nothing yet, described by `empty`)."""
+    candidates: tuple[Path, ...]
+    how: str
+    route: str
+    empty: str = ""
+
+
+def _find_by_structure(here: Path) -> _Found | None:
+    """Steps 2 and 3 of resolve_document(), or None when the structure says nothing."""
+    workspace = _find_workspace(here)
+    # A document root is a directory holding its root .tex - not necessarily a git root,
+    # just as DOC_REPO has never had to be one. The walk stops at the workspace root: a
+    # stray main.tex in the directory *holding* a workspace is not this workspace's
+    # document.
+    stop = workspace[0] if workspace else None
+    for d in (here, *here.parents):
+        if _is_document_root(d):
+            return _Found((d,), f"found at or above {here}", "walk-up")
+        if d == stop:
+            break
+    if workspace is None:
+        return None
+    root, file, members = workspace
+
+    def under(d: str) -> Path:
+        return root / d.strip("/")
+
+    if here != root:
+        # The deepest analysis member holding the current directory, so a notebook dir
+        # inside an analysis resolves as the analysis does.
+        mine = [m for m in members if m.get("kind") == "analysis"
+                and _is_within(here, under(m["dir"]))]
+        if not mine:
+            return None
+        member = max(mine, key=lambda m: len(under(m["dir"]).parts))
+        documents = member.get("documents", [])
+        if not isinstance(documents, list) or not all(isinstance(d, str) for d in documents):
+            raise ConfigError(f"{file}: `documents` of analysis member {member['dir']!r} "
+                              f"must be a list of document dirs, not {documents!r}")
+        where = f"workspace analysis {member['dir'].strip('/')}/ feeds (in {file})"
+        return _Found(tuple(under(d) for d in documents), where, "workspace",
+                      empty=f"Workspace analysis {member['dir'].strip('/')}/ feeds no "
+                            f"document yet: its `documents` in {file} is empty.")
+
+    docs = tuple(under(m["dir"]) for m in members if m.get("kind") == "document")
+    if not docs:
+        return None
+    return _Found(docs, f"listed as document members of {file}", "workspace")
+
+
+def _find_workspace(start: Path) -> tuple[Path, Path, list[dict]] | None:
+    """(root, file, members) of the nearest .claude/workspace.json at or above `start`.
+
+    The same rules as context-kit-core's findWorkspace() and project-workspace's port of
+    it: nearest wins and levels never merge; the walk does not stop at a `.git`, because
+    members are nested clones; and a malformed nearest file - a directory of that name
+    included - is an error, never skipped past, since a typo here must not silently load
+    an outer workspace's documents. Unknown keys and member fields are other owners'
+    business and are ignored.
+    """
+    for d in (start, *start.parents):
+        file = d / WORKSPACE_FILE
+        if not file.exists():
+            continue
+        try:
+            data = json.loads(file.read_text(encoding="utf-8").removeprefix("\ufeff"))
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            raise ConfigError(f"{file} is malformed ({str(exc).splitlines()[0]}) - fix it, "
+                              f"or pass --document <dir>") from None
+        if not isinstance(data, dict):
+            raise ConfigError(f"{file} is malformed (top level is not a JSON object)")
+        members = data.get("members", [])
+        if not isinstance(members, list):
+            raise ConfigError(f"{file}: `members` must be a list, not {type(members).__name__}")
+        # A member with no dir cannot be placed on disk, so cannot be a match either;
+        # project-workspace skips them the same way.
+        return d, file, [m for m in members
+                         if isinstance(m, dict) and isinstance(m.get("dir"), str) and m["dir"]]
+    return None
+
+
+def _is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
 
 
 def main_tex(repo: Path | None = None) -> str:
@@ -215,8 +412,43 @@ def build_dir(create: bool = False) -> Path:
     override = os.environ.get("DOC_BUILD_DIR", "").strip()
     path = Path(override).expanduser() if override else Path.cwd() / "build"
     if create:
+        if not override:
+            _refuse_an_unignored_build_inside_the_document(path)
         path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _refuse_an_unignored_build_inside_the_document(build: Path) -> None:
+    """Stop `<cwd>/build` from being created, unignored, in the document's own tree.
+
+    Before the document could be found by walking up, the build ran from a publish repo
+    that ignores build/. Run from inside the document, the default puts corpus_draft.md -
+    source comments, provisional numbers, open questions - into the repo Overleaf syncs,
+    one `git add .` from being shared. Only that route is checked: with DOC_REPO set the
+    working directory was always the user's choice, and is left as it was. And only on
+    create, which is how `build` writes it; a reader of an existing build/ adds no risk.
+    """
+    try:
+        found = resolve_document()
+    except ConfigError:
+        return
+    if found.route != "walk-up":
+        return
+    try:
+        # A path inside build/, so a directory-only `build/` pattern matches before the
+        # directory exists. 0 = ignored, 1 = not ignored, 128 = not in a git repo.
+        code = subprocess.run(
+            ["git", "-C", str(build.parent), "check-ignore", "-q",
+             f"{build.name}/corpus_draft.md"],
+            capture_output=True).returncode
+    except OSError:
+        code = None
+    if code in (0, 128):
+        return
+    raise ConfigError(
+        f"the build dir {build} would sit inside the document ({found.path}) and git does "
+        f"not ignore it - the draft corpus would be one commit from Overleaf. Add `build/` "
+        f"to that repo's .gitignore, set DOC_BUILD_DIR, or run from outside the document.")
 
 
 def _output(env: str, default: Path, create: bool = False) -> Path:
@@ -308,7 +540,12 @@ def corpus_mode() -> str:
 def describe() -> str:
     """Human-readable resolution of every setting, for `doc-publish config`."""
     lines = [f".env: {_ENV_FILE or '(none found)'}"]
-    for label, fn in (("DOC_REPO", document_repo), ("state dir", state_dir),
+    try:
+        found = resolve_document()
+        lines.append(f"document: {found.path} - {found.source}")
+    except ConfigError as exc:
+        lines.append(f"document: unresolved - {exc}")
+    for label, fn in (("state dir", state_dir),
                       ("build dir", build_dir), ("DOC_PUBLISH_REPO", publish_repo),
                       ("CORPUS_MODE", corpus_mode)):
         try:

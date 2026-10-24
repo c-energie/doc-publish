@@ -60,12 +60,12 @@ def test_a_buildable_document_does_not_fail(monkeypatch, document):
 
 def test_an_unset_doc_repo_fails(monkeypatch):
     r = _run(monkeypatch)
-    assert _states(r)["DOC_REPO"] == doctor.FAIL
+    assert _states(r)["document"] == doctor.FAIL
 
 
 def test_a_doc_repo_with_no_root_tex_fails(monkeypatch, tmp_path):
     r = _run(monkeypatch, tmp_path)
-    assert _states(r)["DOC_REPO"] == doctor.FAIL
+    assert _states(r)["document"] == doctor.FAIL
 
 
 def test_unconfigured_optional_streams_never_fail(monkeypatch, document):

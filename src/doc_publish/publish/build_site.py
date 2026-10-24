@@ -100,8 +100,13 @@ def main(argv: list[str] | None = None) -> int:
     SITE.mkdir(parents=True, exist_ok=True)
     figures = FigureEmitter(
         figures_json,
-        [BUILD / "figures_manifest.json", document_repo / "figures_manifest.json"],
+        [document_repo / "figures_manifest.json", BUILD / "figures_manifest.json"],
         BUILD, SITE)
+    for ignored in figures.manifests_ignored:
+        warning = (f"two figure manifests: using {figures.manifest_path}, ignoring "
+                   f"{ignored}")
+        print(f"warning: {warning}", file=sys.stderr)
+        report.append(warning)
 
     known_math = KATEX_OK | set(SHIM_MACROS)   # MathJax >= KaTeX; shims cover the rest
     writer = PageWriter(plan, resolver, figures, signs, known_math)

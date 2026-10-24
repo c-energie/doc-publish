@@ -13,9 +13,17 @@ manifest supplies assets only.
 figures_manifest.json is the refactor's output and does not exist yet. Expected
 shape (documented guess, adapt when the refactor lands):
     {"<label>": {"interactive": "<path to .html>", "static": "<path to .png>"}}
-Looked for in build/ then $DOC_REPO. Until it exists every figure falls back to
-its PNG and the build report says so - the site must build before the refactor is
-done.
+Looked for in the document first, then build/. doc_analysis writes the document's copy,
+one per document however many analyses feed it, so it is the more complete of the two;
+build/'s is `doc-publish figures`' single-directory mapping. When both exist the site
+says which it used. An entry's `interactive` path is relative to the manifest file it
+came from, so `../<analysis>/figures_html/x.html` resolves with no workspace lookup.
+Until one exists every figure falls back to its PNG and the build report says so -
+the site must build before the refactor is done.
+
+Only figure labels are looked up. Keys doc_analysis writes for other consumers ("Tab:
+<tag>", "Val: <macro>") and fields such as `analysis` are ignored, never an error: the
+manifest is shared, and this reader using a subset of it must not break when it grows.
 
 Offline: interactive exports must be written with include_plotlyjs="directory" so
 plotly.min.js sits next to them; the whole directory is copied into the site, and
@@ -43,20 +51,26 @@ class FigureEmitter:
         self.assets_dir.mkdir(parents=True, exist_ok=True)
         self.tiers = {"interactive": [], "static": [], "pending": []}
 
+        # Candidates in preference order. The ones found but not used are kept, so the
+        # caller can say so: two manifests disagreeing is otherwise invisible.
         self.manifest: dict = {}
         self.manifest_path: Path | None = None
+        self.manifests_ignored: list[Path] = []
         for cand in manifest_candidates:
-            if cand and cand.exists():
+            if not (cand and cand.exists()):
+                continue
+            if self.manifest_path is None:
                 self.manifest = json.loads(cand.read_text(encoding="utf-8"))
                 self.manifest_path = cand
-                break
+            else:
+                self.manifests_ignored.append(cand)
 
     def emit(self, label: str, caption_md: str) -> str:
         slug = float_slug("figure", label)
         entry = self.entries.get(label)
 
         m = self.manifest.get(label, {})
-        interactive = m.get("interactive")
+        interactive = m.get("interactive") if isinstance(m, dict) else None
         if interactive and self.manifest_path is not None:
             src = (self.manifest_path.parent / interactive).resolve()
             if src.exists():

@@ -3,7 +3,10 @@
 The engine that turns a LaTeX document into a corpus, a Notion wiki and a site. This repo
 is **generic and public**. Everything specific to a particular document — its subject, its
 answering rules, its publishing state — lives in that document's repo under
-`.doc-publish/`, located by `DOC_REPO`.
+`.doc-publish/`, located by `--document`, `DOC_REPO`, or the project structure (the root
+`.tex` above the current directory, then `.claude/workspace.json`) — see
+`config.resolve_document`. A `DOC_REPO` that disagrees with the structure is an error,
+never a silent choice.
 
 Nothing document-specific belongs in this repo. If you find yourself writing a section
 number, a dataset name or a result into a file here, it goes in the state directory
@@ -129,7 +132,10 @@ by name, so a rename breaks both with no error.
 labels to their `.html` exports. It is what lets the Notion stream embed the hosted plot
 instead of a picture of it; without it every figure falls back to its static image, which
 for a PDF static means it does not publish at all. `sync` reports that rather than
-emitting silently empty figure cards.
+emitting silently empty figure cards. The site reads `<document>/figures_manifest.json`
+(written by `doc_analysis`) in preference to build/'s and warns when both exist; `sync`
+still reads build/'s only. Keys and fields a stream does not use (`Tab:`, `Val:`,
+`analysis`) are ignored, never an error.
 
 ## Publishing
 

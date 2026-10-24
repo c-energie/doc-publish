@@ -23,8 +23,21 @@ pip install -e ".[dev]"         # + pytest;  then: pytest tests -q
 doc-publish env                 # write a .env here;  then fill in DOC_REPO
 ```
 
-Only `DOC_REPO` is required. `doc-publish config` prints how every setting resolved
-and from where, which is the fastest way to diagnose a path problem.
+The one thing it must know is which document to read. In order, that is:
+
+1. `--document <dir>` on any command, then `DOC_REPO`;
+2. otherwise the nearest directory at or above the current one holding the root `.tex`
+   (`DOC_MAIN_TEX`, else `main.tex`, `thesis.tex`, ...) — running inside a document, or
+   inside an analysis nested in one;
+3. otherwise `.claude/workspace.json`: the one document a workspace analysis feeds, or,
+   from the workspace root, its one `kind: "document"` member. Several is an error that
+   lists them and asks for `--document`.
+
+`DOC_REPO` is for a document no structure describes — a sibling checkout, a document
+elsewhere on disk. When it is set *and* steps 2–3 find a different document, every
+command fails naming both: one of them is stale. `doc-publish config` prints which step
+found the document and how every other setting resolved, which is the fastest way to
+diagnose a path problem.
 
 `doc-publish env` never overwrites an existing `.env` — it may hold the only copy of a
 token, and there is no `--force`. Run against one that exists, it audits instead: which
