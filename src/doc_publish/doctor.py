@@ -92,13 +92,17 @@ def _nearest_env() -> Path | None:
 def _check_document(r: Report) -> Path | None:
     """The document repo and its root .tex. Everything else depends on this."""
     try:
-        repo = config.document_repo()
+        found = config.resolve_document()
     except config.ConfigError as exc:
-        r.add("Document", "DOC_REPO", FAIL, str(exc),
-              "Set DOC_REPO to your LaTeX document repo, in .env or your shell.")
+        r.add("Document", "document", FAIL, str(exc),
+              "Set DOC_REPO to your LaTeX document repo, in .env or your shell; or run "
+              "from inside the document; or pass --document <dir>.")
         return None
 
-    r.add("Document", "DOC_REPO", OK, str(repo))
+    repo = found.path
+    r.add("Document", "document", OK, str(repo))
+    # Which step found it: with three ways in, "why this document?" is the first question.
+    r.add("Document", "resolved by", OK, found.source)
     root = config.main_tex(repo)
     r.add("Document", "root .tex", OK, root)
     r.add("Document", "title", OK, config.title())

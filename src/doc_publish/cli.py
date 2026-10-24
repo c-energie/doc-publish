@@ -25,6 +25,11 @@ USAGE = """doc-publish <command> [options]
   publish    copy the site and corpus into $DOC_PUBLISH_REPO (no commit)
   app        run the chat server (needs the 'app' extra)
   agent      run the Agent SDK chat server (needs the 'agent' extra)
+
+Any command takes --document <dir> to name the document, overriding DOC_REPO and the
+project structure. Without it the document is DOC_REPO, else the nearest document at or
+above the current directory, else the one .claude/workspace.json says this analysis (or
+this workspace) has. `doc-publish config` says which.
 """
 
 
@@ -108,6 +113,28 @@ COMMANDS = {
 }
 
 
+def _take_document(args: list[str]) -> tuple[list[str], str | None]:
+    """Remove `--document <dir>` / `--document=<dir>` from `args`, returning its value.
+
+    Taken here rather than by each subcommand's parser so that every command reading the
+    document accepts it - `build` has no parser at all - and resolves it the same way,
+    through config, with the same root-.tex check. `--document-repo` is init/check's own
+    flag and is left for them.
+    """
+    rest, value = [], None
+    it = iter(args)
+    for arg in it:
+        if arg == "--document":
+            value = next(it, None)
+            if value is None:
+                raise SystemExit("--document needs a directory")
+        elif arg.startswith("--document="):
+            value = arg.split("=", 1)[1]
+        else:
+            rest.append(arg)
+    return rest, value
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ("-h", "--help", "help"):
@@ -117,6 +144,10 @@ def main(argv: list[str] | None = None) -> int:
     if command not in COMMANDS:
         print(f"unknown command {command!r}\n\n{USAGE}", file=sys.stderr)
         return 2
+    rest, document = _take_document(rest)
+    if document is not None:
+        from . import config
+        config.set_document(document)
     try:
         return COMMANDS[command](rest)
     except KeyboardInterrupt:

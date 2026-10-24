@@ -39,11 +39,10 @@ def main() -> int:
     try:
         repo = config.document_repo()
         source = config.source_label()
+        OUT = config.build_dir(create=True)
     except config.ConfigError as exc:
         print(exc, file=sys.stderr)
         return 2
-
-    OUT = config.build_dir(create=True)
 
     try:
         public = flatten(repo, mode="public")
